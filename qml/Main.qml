@@ -635,8 +635,37 @@ Window {
                 }
             }
             
-            // 底部留白
-            Item { height: 20 }
+            // Item { height: 5 }
+
+            ColumnLayout {
+                // 居中显示整个信息块，而不是占满整行宽度
+                Layout.alignment: Qt.AlignHCenter
+                Layout.preferredWidth: implicitWidth
+                spacing: 2
+                
+                // 应用名
+                Text {
+                    text: appName // 从 C++ 获取
+                    color: "#444444" // 深灰色，低调
+                    font.pixelSize: 14
+                    font.bold: true
+                    font.letterSpacing: 2 // 增加字间距，更有设计感
+                    Layout.alignment: Qt.AlignHCenter
+                }
+                
+                // Git Hash
+                Text {
+                    text: "Build: " + appBuildHash // 从 C++ 获取
+                    color: "#333333" // 更深的灰色
+                    font.family: "Monospace"
+                    font.pixelSize: 10
+                    Layout.alignment: Qt.AlignHCenter
+                    opacity: 0.6
+                }
+            }
+
+            // 底部安全距离
+            // Item { height: 20 }
         }
     }
 }
