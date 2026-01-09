@@ -14,20 +14,38 @@ Window {
         id: backend
     }
 
-    function usageColor(v) {
+    // --- 1. CPU 配色 (经典性能监控色: 绿 -> 黄 -> 红) ---
+    function cpuColor(v) {
         var value = Math.max(0, Math.min(1, v));
-        if (value < 0.4) return "#4CAF50"; // 低占用偏绿
-        if (value < 0.7) return "#FFC107"; // 中等占用改为黄
-        return "#FF5252"; // 高占用预警红
+        if (value < 0.4) return "#4CAF50"; // Green
+        if (value < 0.7) return "#FFC107"; // Amber
+        return "#FF5252"; // Red
     }
 
+    // --- 2. 内存 配色 (科技冷色调: 蓝 -> 紫 -> 粉红) ---
+    function memColor(v) {
+        var value = Math.max(0, Math.min(1, v));
+        if (value < 0.5) return "#2196F3"; // Blue
+        if (value < 0.8) return "#9C27B0"; // Purple
+        return "#E91E63"; // Pink/Red
+    }
+
+    // --- 3. 硬盘 配色 (数据存储色: 青 -> 橙 -> 红) ---
+    function diskColor(v) {
+        var value = Math.max(0, Math.min(1, v));
+        if (value < 0.6) return "#00E5FF"; // Cyan
+        if (value < 0.85) return "#FF9800"; // Orange
+        return "#FF5252"; // Red
+    }
+
+    // --- 4. 电池 配色 (充电状态优先) ---
     function batteryColor(percent, state) {
-        if (state === "Charging") return "#00E676"; // 充电中直接绿
+        if (state === "Charging") return "#00E676"; // Bright Green
         var p = Math.max(0, Math.min(100, percent));
-        if (p >= 85) return "#4CAF50"; // 满电/高电量绿
-        if (p >= 40) return "#FFC107"; // 中等电量黄
-        if (p >= 20) return "#FF9800"; // 低电量橙
-        return "#FF5252"; // 极低电量红
+        if (p >= 80) return "#4CAF50"; 
+        if (p >= 30) return "#FFC107"; 
+        if (p >= 15) return "#FF9800"; 
+        return "#FF5252"; 
     }
 
     // ================= POPUPS =================
@@ -362,7 +380,7 @@ Window {
                             value: backend.cpuTotal
                             centerText: (backend.cpuTotal * 100).toFixed(0) + "%"
                             subText: "CPU"
-                            primaryColor: usageColor(backend.cpuTotal)
+                            primaryColor: cpuColor(backend.cpuTotal)
                             Layout.alignment: Qt.AlignHCenter // 确保圆环自身居中
                         }
                         
@@ -374,7 +392,7 @@ Window {
                                 model: backend.cpuCores
                                 Rectangle {
                                     width: 8; height: 8; radius: 2
-                                    color: usageColor(modelData)
+                                    color: cpuColor(modelData)
                                 }
                             }
                         }
@@ -395,7 +413,7 @@ Window {
                             value: backend.memPercent
                             centerText: (backend.memPercent * 100).toFixed(0) + "%"
                             subText: "MEM"
-                            primaryColor: usageColor(backend.memPercent)
+                            primaryColor: memColor(backend.memPercent)
                             Layout.alignment: Qt.AlignHCenter
                         }
                         
@@ -427,7 +445,7 @@ Window {
                             value: backend.diskPercent
                             centerText: (backend.diskPercent * 100).toFixed(0) + "%"
                             subText: "DISK (/)"
-                            primaryColor: usageColor(backend.diskPercent)
+                            primaryColor: diskColor(backend.diskPercent)
                             Layout.alignment: Qt.AlignHCenter
                         }
                         
