@@ -4,11 +4,8 @@
 
 int main(int argc, char *argv[])
 {
+    qputenv("QT_SCALE_FACTOR", "2.2");
     QGuiApplication app(argc, argv);
-
-    // 针对手机的高 DPI 缩放
-    // Qt6 默认开启，若是 Qt5 需要取消下面注释
-    // QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 
     // 注册 C++ 类型到 QML
     qmlRegisterType<SystemMonitor>("MyDesktop.Backend", 1, 0, "SystemMonitor");
