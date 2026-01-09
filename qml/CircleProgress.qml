@@ -52,6 +52,7 @@ Item {
     // 中心文字
     Column {
         anchors.centerIn: parent
+        spacing: 4
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: root.centerText

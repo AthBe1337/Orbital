@@ -14,32 +14,41 @@ Window {
         id: backend
     }
 
+    function usageColor(v) {
+        var value = Math.max(0, Math.min(1, v));
+        if (value < 0.4) return "#4CAF50"; // 低占用偏绿
+        if (value < 0.7) return "#FFC107"; // 中等占用改为黄
+        return "#FF5252"; // 高占用预警红
+    }
+
+    function batteryColor(percent, state) {
+        if (state === "Charging") return "#00E676"; // 充电中直接绿
+        var p = Math.max(0, Math.min(100, percent));
+        if (p >= 85) return "#4CAF50"; // 满电/高电量绿
+        if (p >= 40) return "#FFC107"; // 中等电量黄
+        if (p >= 20) return "#FF9800"; // 低电量橙
+        return "#FF5252"; // 极低电量红
+    }
+
+    // ================= POPUPS =================
+
     Popup {
         id: cpuDetailsPopup
-        // 使用 Overlay.overlay 作为父级，确保它浮在整个窗口最上层，不受 Layout 限制
-        parent: Overlay.overlay 
-        
+        parent: Overlay.overlay
         x: Math.round((parent.width - width) / 2)
         y: Math.round((parent.height - height) / 2)
         width: parent.width * 0.85
         height: parent.height * 0.6
-        
-        modal: true // 开启模态，这会自动在背景层加一个半透明遮罩
+        modal: true
         focus: true
-        
-        // 确保关闭策略包含点击外部
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-
-        // 自定义遮罩层样式 (可选，让背景变暗一点，更有沉浸感)
-        Overlay.modal: Rectangle {
-            color: "#aa000000" // 黑色半透明
-        }
-
+        
+        Overlay.modal: Rectangle { color: "#aa000000" }
+        
         enter: Transition {
             NumberAnimation { property: "opacity"; from: 0.0; to: 1.0; duration: 200 }
             NumberAnimation { property: "scale"; from: 0.9; to: 1.0; duration: 200 }
         }
-        
         exit: Transition {
             NumberAnimation { property: "opacity"; from: 1.0; to: 0.0; duration: 200 }
             NumberAnimation { property: "scale"; from: 1.0; to: 0.9; duration: 200 }
@@ -54,6 +63,8 @@ Window {
 
         contentItem: ColumnLayout {
             spacing: 20
+            // 顶部留白，替代原来的 Layout.topMargin，布局更稳定
+            Item { height: 10; Layout.fillWidth: true } 
 
             Text {
                 text: "CPU Core Details"
@@ -61,19 +72,20 @@ Window {
                 font.pixelSize: 20
                 font.bold: true
                 Layout.alignment: Qt.AlignHCenter
-                Layout.topMargin: 10
             }
 
-            // 条形图列表
             ListView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                // 左右留白，防止滚动条贴边
+                Layout.leftMargin: 20
+                Layout.rightMargin: 20 
                 model: backend.cpuCores
                 spacing: 15
                 clip: true
                 
                 delegate: ColumnLayout {
-                    width: cpuDetailsPopup.width - 40
+                    width: ListView.view.width // 强制宽度与列表一致
                     spacing: 5
                     
                     RowLayout {
@@ -83,7 +95,7 @@ Window {
                             color: "#aaaaaa"
                             font.pixelSize: 14 
                         }
-                        Item { Layout.fillWidth: true }
+                        Item { Layout.fillWidth: true } // 弹簧占位
                         Text { 
                             text: (modelData * 100).toFixed(1) + "%"
                             color: "white"
@@ -91,50 +103,231 @@ Window {
                         }
                     }
 
-                    // 进度条背景
                     Rectangle {
                         Layout.fillWidth: true
                         height: 12
                         color: "#333333"
                         radius: 6
-
-                        // 进度条填充
                         Rectangle {
                             width: parent.width * modelData
                             height: parent.height
-                            color: modelData > 0.8 ? "#FF5252" : "#FFD740" // 高负载变红
+                            color: modelData > 0.8 ? "#FF5252" : "#FFD740"
                             radius: 6
+                            Behavior on width { NumberAnimation { duration: 500; easing.type: Easing.OutExpo } }
+                        }
+                    }
+                }
+            }
+            // 底部留白
+            Item { height: 10; Layout.fillWidth: true }
+        }
+    }
+
+    // 2. 硬盘详情模态框 (Fixed Overflow)
+    Popup {
+        id: diskPopup
+        parent: Overlay.overlay
+        x: Math.round((parent.width - width) / 2)
+        y: Math.round((parent.height - height) / 2)
+        width: parent.width * 0.9 // 硬盘路径通常较长，给宽一点
+        height: parent.height * 0.6
+        modal: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        
+        Overlay.modal: Rectangle { color: "#aa000000" }
+        enter: Transition {
+            NumberAnimation { property: "opacity"; from: 0.0; to: 1.0; duration: 200 }
+            NumberAnimation { property: "scale"; from: 0.9; to: 1.0; duration: 200 }
+        }
+        exit: Transition {
+            NumberAnimation { property: "opacity"; from: 1.0; to: 0.0; duration: 200 }
+            NumberAnimation { property: "scale"; from: 1.0; to: 0.9; duration: 200 }
+        }
+
+        background: Rectangle {
+            color: "#1e1e1e"
+            radius: 15
+            border.color: "#333333"
+            border.width: 1
+        }
+
+        contentItem: ColumnLayout {
+            spacing: 20
+            Item { height: 10; Layout.fillWidth: true }
+
+            Text { 
+                text: "Storage Partitions"
+                color: "white" 
+                font.pixelSize: 20 
+                font.bold: true 
+                Layout.alignment: Qt.AlignHCenter 
+            }
+            
+            ListView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.leftMargin: 15
+                Layout.rightMargin: 15
+                model: backend.diskPartitions
+                spacing: 10
+                clip: true // 防止溢出绘制到圆角外部
+                
+                delegate: Rectangle {
+                    width: ListView.view.width
+                    height: 75
+                    color: "#2d2d2d"
+                    radius: 8
+                    
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 12
+                        spacing: 4
+                        
+                        // 第一行：挂载点 (左) + 容量 (右)
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 10
                             
-                            // 简单的动画平滑过渡
-                            Behavior on width {
-                                NumberAnimation { duration: 500; easing.type: Easing.OutExpo }
+                            Text { 
+                                text: modelData.mount
+                                color: "white"
+                                font.bold: true
+                                font.pixelSize: 16
+                                // 【关键】防止挂载点过长导致换行或挤出
+                                Layout.fillWidth: true 
+                                elide: Text.ElideRight 
+                            }
+                            
+                            Text { 
+                                text: modelData.used + " / " + modelData.size
+                                color: "#aaaaaa"
+                                font.pixelSize: 12
+                                // 强制不换行，保持右侧对齐
+                                Layout.preferredWidth: implicitWidth 
+                            }
+                        }
+                        
+                        // 第二行：设备名 (左) + 类型 (左)
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { 
+                                text: modelData.device
+                                color: "#666666"
+                                font.pixelSize: 10
+                                Layout.maximumWidth: parent.width * 0.6 // 限制设备名最大宽度
+                                elide: Text.ElideMiddle // 设备名如果太长，中间省略
+                            }
+                            Text { 
+                                text: "[" + modelData.type + "]"
+                                color: "#666666"
+                                font.pixelSize: 10
+                            }
+                        }
+                        
+                        // 第三行：进度条
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 4
+                            color: "#444"
+                            radius: 2
+                            Rectangle { 
+                                width: parent.width * modelData.percent
+                                height: parent.height
+                                color: modelData.percent > 0.9 ? "#FF5252" : "#00E5FF"
+                                radius: 2
                             }
                         }
                     }
                 }
             }
-
-            Button {
-                text: "Close"
-                Layout.alignment: Qt.AlignHCenter
-                Layout.bottomMargin: 10
-                onClicked: cpuDetailsPopup.close()
-                
-                background: Rectangle {
-                    implicitWidth: 100
-                    implicitHeight: 40
-                    color: "#333333"
-                    radius: 20
-                }
-                contentItem: Text {
-                    text: parent.text
-                    color: "white"
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-            }
+            Item { height: 10; Layout.fillWidth: true }
         }
     }
+
+    // 3. 电池详情模态框 (Fixed Overflow & Layout)
+    Popup {
+        id: batPopup
+        parent: Overlay.overlay
+        x: Math.round((parent.width - width) / 2)
+        y: Math.round((parent.height - height) / 2)
+        width: parent.width * 0.85
+        height: parent.height * 0.5
+        modal: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        
+        Overlay.modal: Rectangle { color: "#aa000000" }
+        enter: Transition {
+            NumberAnimation { property: "opacity"; from: 0.0; to: 1.0; duration: 200 }
+            NumberAnimation { property: "scale"; from: 0.9; to: 1.0; duration: 200 }
+        }
+        exit: Transition {
+            NumberAnimation { property: "opacity"; from: 1.0; to: 0.0; duration: 200 }
+            NumberAnimation { property: "scale"; from: 1.0; to: 0.9; duration: 200 }
+        }
+
+        background: Rectangle {
+            color: "#1e1e1e"
+            radius: 15
+            border.color: "#333333"
+            border.width: 1
+        }
+
+        contentItem: ColumnLayout {
+            spacing: 20
+            Item { height: 10; Layout.fillWidth: true }
+
+            Text { 
+                text: "Battery Status"
+                color: "white" 
+                font.pixelSize: 20 
+                font.bold: true 
+                Layout.alignment: Qt.AlignHCenter 
+            }
+            
+            // 使用 ListView 替代 GridLayout，处理长内容更灵活
+            ListView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.leftMargin: 25
+                Layout.rightMargin: 25
+                clip: true
+                
+                // 将 Map 的 Key 转换为数组模型
+                model: Object.keys(backend.batDetails)
+                spacing: 12
+                
+                delegate: RowLayout {
+                    width: ListView.view.width
+                    spacing: 10
+                    
+                    // Key (左侧，灰色)
+                    Text { 
+                        text: modelData
+                        color: "#888888"
+                        font.pixelSize: 14
+                        // 限制 Key 的最大宽度，防止挤压 Value
+                        Layout.preferredWidth: parent.width * 0.4 
+                        elide: Text.ElideRight 
+                    }
+                    
+                    // Value (右侧，白色，高亮)
+                    Text { 
+                        text: backend.batDetails[modelData]
+                        color: "white"
+                        font.pixelSize: 14
+                        font.bold: true
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignRight
+                        
+                        elide: Text.ElideMiddle 
+                    }
+                }
+            }
+            Item { height: 10; Layout.fillWidth: true }
+        }
+    }
+
+    // ================= MAIN UI =================
 
     Flickable {
         anchors.fill: parent
@@ -148,97 +341,130 @@ Window {
             y: 20
             spacing: 15
 
-            // --- 标题 ---
-            Text {
-                text: "Server Status"
-                color: "white"
-                font.bold: true
-                font.pixelSize: 24
-                Layout.leftMargin: 5
-            }
+            Text { text: "Server Status"; color: "white"; font.bold: true; font.pixelSize: 24; Layout.leftMargin: 5 }
 
-            // --- 第一行：CPU 和 内存 环形图 ---
+            // --- Row 1: CPU & Memory ---
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 15
 
-                // CPU 卡片
+                // CPU Card
                 Rectangle {
-                    id: cpuCard
-                    Layout.fillWidth: true
-                    height: 180
-                    color: tapHandler.pressed ? "#2a2a2a" : "#1e1e1e" // 点击时颜色反馈
-                    radius: 12
-
+                    Layout.fillWidth: true; height: 160
+                    color: tapCpu.pressed ? "#2a2a2a" : "#1e1e1e"; radius: 12
+                    
                     ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 15
-                        Text { text: "CPU Load"; color: "#dddddd"; font.bold: true }
+                        anchors.centerIn: parent
+                        spacing: 15 // 控制圆环与下方核心指示器的间距
 
                         CircleProgress {
-                            Layout.alignment: Qt.AlignHCenter
-                            Layout.preferredWidth: 100
-                            Layout.preferredHeight: 100
+                            Layout.preferredWidth: 90; Layout.preferredHeight: 90
                             value: backend.cpuTotal
                             centerText: (backend.cpuTotal * 100).toFixed(0) + "%"
-                            subText: "Tap for Details"
-                            primaryColor: "#FF5252"
+                            subText: "CPU"
+                            primaryColor: usageColor(backend.cpuTotal)
+                            Layout.alignment: Qt.AlignHCenter // 确保圆环自身居中
                         }
                         
-                        // 底部迷你核心指示器（保留）
+                        // 核心指示器
                         Row {
-                            Layout.alignment: Qt.AlignHCenter
+                            Layout.alignment: Qt.AlignHCenter // 确保这行小点点居中
                             spacing: 4
                             Repeater {
                                 model: backend.cpuCores
                                 Rectangle {
                                     width: 8; height: 8; radius: 2
-                                    color: modelData > 0.1 ? "#FF5252" : "#333333"
+                                    color: usageColor(modelData)
                                 }
                             }
                         }
                     }
+                    TapHandler { id: tapCpu; enabled: !cpuDetailsPopup.visible; onTapped: cpuDetailsPopup.open() }
+                }
 
-                    // 点击区域
-                    TapHandler {
-                        id: tapHandler
-                        enabled: !cpuDetailsPopup.visible
-                                                
-                        onTapped: {
-                            console.log("Tap detected!")
-                            cpuDetailsPopup.open()
+                // Memory Card
+                Rectangle {
+                    Layout.fillWidth: true; height: 160; color: "#1e1e1e"; radius: 12
+                    
+                    ColumnLayout {
+                        anchors.centerIn: parent
+                        spacing: 15 // 增加圆环与文字间距
+
+                        CircleProgress {
+                            Layout.preferredWidth: 90; Layout.preferredHeight: 90
+                            value: backend.memPercent
+                            centerText: (backend.memPercent * 100).toFixed(0) + "%"
+                            subText: "MEM"
+                            primaryColor: usageColor(backend.memPercent)
+                            Layout.alignment: Qt.AlignHCenter
+                        }
+                        
+                        Text { 
+                            text: backend.memDetail
+                            color: "#aaa"; font.pixelSize: 12 // 字体稍微调大一点点更清晰
+                            Layout.alignment: Qt.AlignHCenter // 确保文字居中
                         }
                     }
                 }
+            }
 
-                // 内存 卡片
+            // --- Row 2: Disk & Battery ---
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 15
+
+                // Disk Card (Root)
                 Rectangle {
-                    Layout.fillWidth: true
-                    height: 180
-                    color: "#1e1e1e"
-                    radius: 12
-
+                    Layout.fillWidth: true; height: 160
+                    color: tapDisk.pressed ? "#2a2a2a" : "#1e1e1e"; radius: 12
+                    
                     ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 15
-                        Text { text: "Memory"; color: "#dddddd"; font.bold: true }
+                        anchors.centerIn: parent
+                        spacing: 15 // 增加圆环与文字间距
 
                         CircleProgress {
+                            Layout.preferredWidth: 90; Layout.preferredHeight: 90
+                            value: backend.diskPercent
+                            centerText: (backend.diskPercent * 100).toFixed(0) + "%"
+                            subText: "DISK (/)"
+                            primaryColor: usageColor(backend.diskPercent)
                             Layout.alignment: Qt.AlignHCenter
-                            Layout.preferredWidth: 100
-                            Layout.preferredHeight: 100
-                            value: backend.memPercent
-                            centerText: (backend.memPercent * 100).toFixed(0) + "%"
-                            primaryColor: "#4CAF50"
                         }
                         
-                        Text {
-                            Layout.alignment: Qt.AlignHCenter
-                            text: backend.memDetail
-                            color: "#aaaaaa"
-                            font.pixelSize: 12
+                        Text { 
+                            text: backend.diskRootUsage
+                            color: "#aaa"; font.pixelSize: 12 
+                            Layout.alignment: Qt.AlignHCenter // 确保文字居中
                         }
                     }
+                    TapHandler { id: tapDisk; enabled: !diskPopup.visible; onTapped: diskPopup.open() }
+                }
+
+                // Battery Card
+                Rectangle {
+                    Layout.fillWidth: true; height: 160
+                    color: tapBat.pressed ? "#2a2a2a" : "#1e1e1e"; radius: 12
+                    
+                    ColumnLayout {
+                        anchors.centerIn: parent
+                        spacing: 15 // 增加圆环与文字间距
+
+                        CircleProgress {
+                            Layout.preferredWidth: 90; Layout.preferredHeight: 90
+                            value: backend.batPercent / 100.0
+                            centerText: backend.batPercent + "%"
+                            subText: "BATTERY"
+                            primaryColor: batteryColor(backend.batPercent, backend.batState)
+                            Layout.alignment: Qt.AlignHCenter
+                        }
+                        
+                        Text { 
+                            text: backend.batState
+                            color: "#aaa"; font.pixelSize: 12 
+                            Layout.alignment: Qt.AlignHCenter // 确保文字居中
+                        }
+                    }
+                    TapHandler { id: tapBat; enabled: !batPopup.visible; onTapped: batPopup.open() }
                 }
             }
 
