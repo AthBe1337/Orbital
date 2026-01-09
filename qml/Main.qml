@@ -129,7 +129,7 @@ Window {
                         Rectangle {
                             width: parent.width * modelData
                             height: parent.height
-                            color: modelData > 0.8 ? "#FF5252" : "#FFD740"
+                            color: cpuColor(modelData)
                             radius: 6
                             Behavior on width { NumberAnimation { duration: 500; easing.type: Easing.OutExpo } }
                         }
@@ -251,7 +251,7 @@ Window {
                             Rectangle { 
                                 width: parent.width * modelData.percent
                                 height: parent.height
-                                color: modelData.percent > 0.9 ? "#FF5252" : "#00E5FF"
+                                color: diskColor(modelData.percent)
                                 radius: 2
                             }
                         }
