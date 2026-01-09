@@ -211,9 +211,9 @@ Window {
                                 color: "white"
                                 font.bold: true
                                 font.pixelSize: 16
-                                // 【关键】防止挂载点过长导致换行或挤出
+                                // 尽量完整展示挂载点，优先留更多宽度且使用中间省略
                                 Layout.fillWidth: true 
-                                elide: Text.ElideRight 
+                                elide: Text.ElideMiddle
                             }
                             
                             Text { 
@@ -232,7 +232,7 @@ Window {
                                 text: modelData.device
                                 color: "#666666"
                                 font.pixelSize: 10
-                                Layout.maximumWidth: parent.width * 0.6 // 限制设备名最大宽度
+                                Layout.maximumWidth: parent.width * 0.8 // 放宽一点避免过度截断
                                 elide: Text.ElideMiddle // 设备名如果太长，中间省略
                             }
                             Text { 
