@@ -491,101 +491,67 @@ Window {
             // --- Row 3: 历史数据图表 ---
             Rectangle {
                 Layout.fillWidth: true
-                height: 320 // 固定高度，确保图表有足够显示空间
+                height: 380
                 color: "#1e1e1e"
                 radius: 12
                 
                 ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: 15 
-                    spacing: 10
+                    spacing: 5 // 减小间距，因为图表内部有 padding
 
-                    // 标题栏
                     Text {
                         text: "System History"
                         color: "white"
                         font.pixelSize: 16
                         font.bold: true
                         Layout.alignment: Qt.AlignVCenter
+                        Layout.bottomMargin: 5
                     }
 
-                    // 图表区域
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         spacing: 10
 
-                        // 1. CPU History
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true 
-                            spacing: 5
-                            
-                            Text {
-                                text: "CPU Usage"
-                                color: "#aaaaaa"
-                                font.pixelSize: 12
-                                font.bold: true
-                            }
-                            
-                            LineChart {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                inputData: backend.cpuHistory
-                                lineColor: "#FF5252"
-                                fixedMax: 100
-                                suffix: "%"
-                                showGradient: true 
-                            }
-                        }
-
-                        // 分割线
-                        Rectangle { 
-                            Layout.fillWidth: true; 
-                            height: 1; 
-                            color: "#333333" 
-                        }
-
-                        // 2. Memory History
-                        ColumnLayout {
+                        LineChart {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            spacing: 5
                             
-                            Text {
-                                text: "Memory Usage"
-                                color: "#aaaaaa"
-                                font.pixelSize: 12
-                                font.bold: true
-                            }
+                            chartTitle: "CPU Usage"
                             
-                            LineChart {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                inputData: backend.memHistory
-                                lineColor: "#2196F3"
-                                fixedMax: 100
-                                suffix: "%"
-                                showGradient: true
-                            }
+                            datasets: [
+                                { 
+                                    label: "Total", 
+                                    values: backend.cpuHistory, 
+                                    color: "#FF5252" 
+                                }
+                            ]
+                            fixedMax: 100
+                            suffix: "%"
+                        }
+
+                        Rectangle { 
+                            Layout.fillWidth: true; height: 3; color: "#333333" 
+                        }
+
+                        LineChart {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            
+                            chartTitle: "Memory Usage" // 【传入标题】
+                            
+                            datasets: [
+                                { 
+                                    label: "RAM", 
+                                    values: backend.memHistory, 
+                                    color: "#2196F3" 
+                                }
+                            ]
+                            fixedMax: 100
+                            suffix: "%"
                         }
                     }
-                }
-            }
-
-            // --- 占位区域：硬盘 (Disk) ---
-            Rectangle {
-                Layout.fillWidth: true
-                height: 80
-                color: "#1e1e1e"
-                radius: 12
-                
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 15
-                    Text { text: "Disk Usage (Root)"; color: "white" }
-                    Item { Layout.fillWidth: true }
-                    Text { text: "[ Pending ]"; color: "#FF9800" }
                 }
             }
 
