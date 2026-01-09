@@ -612,7 +612,7 @@ Window {
 
                         Rectangle { Layout.fillWidth: true; height: 3; color: "#333333" }
 
-                        // 3. 【新增】Network
+                        // 3. Network
                         LineChart {
                             Layout.fillWidth: true; Layout.fillHeight: true
                             chartTitle: "Network I/O"
@@ -630,22 +630,6 @@ Window {
                             suffix: " KB/s" 
                         }
                     }
-                }
-            }
-
-            // --- 占位区域：网络 (Network) ---
-            Rectangle {
-                Layout.fillWidth: true
-                height: 80
-                color: "#1e1e1e"
-                radius: 12
-
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 15
-                    Text { text: "Network (wlan0)"; color: "white" }
-                    Item { Layout.fillWidth: true }
-                    Text { text: "↓ 0 KB/s  ↑ 0 KB/s"; color: "#2196F3" }
                 }
             }
             

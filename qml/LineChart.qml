@@ -10,7 +10,6 @@ Item {
     property string suffix: ""     
     property bool showLegend: true 
 
-    property double _targetMaxY: 100 
     property double _currentMaxY: 100 
 
     Behavior on _currentMaxY {
@@ -46,7 +45,7 @@ Item {
         }
         
         // 更新目标值，如果值变了，Behavior 会自动开启动画
-        root._targetMaxY = globalMax; 
+        root._currentMaxY = globalMax;
     }
 
     ColumnLayout {
