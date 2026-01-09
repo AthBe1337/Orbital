@@ -10,6 +10,7 @@
 #include <QDirIterator>
 #include <QThread>
 #include <QDebug>
+#include <QVariantList>
 
 class SystemMonitor : public QObject
 {
@@ -24,9 +25,16 @@ class SystemMonitor : public QObject
     Q_PROPERTY(int batPercent READ batPercent NOTIFY statsChanged)
     Q_PROPERTY(QString batState READ batState NOTIFY statsChanged)
     Q_PROPERTY(QVariantMap batDetails READ batDetails NOTIFY statsChanged)
+    Q_PROPERTY(QVariantList cpuHistory READ cpuHistory NOTIFY statsChanged)
+    Q_PROPERTY(QVariantList memHistory READ memHistory NOTIFY statsChanged)
 
 public:
     explicit SystemMonitor(QObject *parent = nullptr) : QObject(parent) {
+        for(int i=0; i<60; ++i) {
+            m_cpuHistory.append(0.0);
+            m_memHistory.append(0.0);
+        }
+
         int coreCount = QThread::idealThreadCount();
         if (coreCount < 1) coreCount = 1;
         
@@ -50,6 +58,8 @@ public:
     int batPercent() const { return m_batPercent; }
     QString batState() const { return m_batState; }
     QVariantMap batDetails() const { return m_batDetails; }
+    QVariantList cpuHistory() const { return m_cpuHistory; }
+    QVariantList memHistory() const { return m_memHistory; }
 
 signals:
     void statsChanged();
@@ -60,10 +70,19 @@ private slots:
         readCpuInfo();
         readDiskInfo();
         readBatteryInfo();
+        updateHistory(m_cpuHistory, m_cpuTotal * 100.0);
+        updateHistory(m_memHistory, m_memPercent * 100.0);
         emit statsChanged();
     }
 
 private:
+    void updateHistory(QVariantList &list, double newValue) {
+        if (list.size() >= 60) {
+            list.removeFirst();
+        }
+        list.append(newValue);
+    }
+
     void readMemInfo() {
         QFile file("/proc/meminfo");
         if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return;
@@ -241,5 +260,8 @@ private:
     
     QVector<long> m_prevTotal;
     QVector<long> m_prevIdle;
+
+    QVariantList m_cpuHistory;
+    QVariantList m_memHistory;
 };
 #endif // SYSTEMMONITOR_H

@@ -26,6 +26,7 @@ qt_add_qml_module(appOp6T_Desktop
     QML_FILES 
         qml/Main.qml
         qml/CircleProgress.qml
+        qml/LineChart.qml
 )
 
 # 链接库

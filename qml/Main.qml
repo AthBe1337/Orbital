@@ -10,6 +10,8 @@ Window {
     title: "OP6T Dashboard"
     color: "#121212"
 
+    property bool historyExpanded: true
+
     SystemMonitor {
         id: backend
     }
@@ -486,20 +488,88 @@ Window {
                 }
             }
 
-            // --- 占位区域：历史曲线 (Line Chart) ---
+            // --- Row 3: 历史数据图表 ---
             Rectangle {
                 Layout.fillWidth: true
-                height: 150
+                height: 320 // 固定高度，确保图表有足够显示空间
                 color: "#1e1e1e"
                 radius: 12
-                border.color: "#333333"
-                border.width: 1 // 虚线效果需 Canvas，这里暂用实线
+                
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 15 
+                    spacing: 10
 
-                Text {
-                    anchors.centerIn: parent
-                    text: "[ TODO: History Line Chart ]\nCPU / Mem Trends"
-                    color: "#555555"
-                    horizontalAlignment: Text.AlignHCenter
+                    // 标题栏
+                    Text {
+                        text: "System History"
+                        color: "white"
+                        font.pixelSize: 16
+                        font.bold: true
+                        Layout.alignment: Qt.AlignVCenter
+                    }
+
+                    // 图表区域
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        spacing: 10
+
+                        // 1. CPU History
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true 
+                            spacing: 5
+                            
+                            Text {
+                                text: "CPU Usage"
+                                color: "#aaaaaa"
+                                font.pixelSize: 12
+                                font.bold: true
+                            }
+                            
+                            LineChart {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                inputData: backend.cpuHistory
+                                lineColor: "#FF5252"
+                                fixedMax: 100
+                                suffix: "%"
+                                showGradient: true 
+                            }
+                        }
+
+                        // 分割线
+                        Rectangle { 
+                            Layout.fillWidth: true; 
+                            height: 1; 
+                            color: "#333333" 
+                        }
+
+                        // 2. Memory History
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            spacing: 5
+                            
+                            Text {
+                                text: "Memory Usage"
+                                color: "#aaaaaa"
+                                font.pixelSize: 12
+                                font.bold: true
+                            }
+                            
+                            LineChart {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                inputData: backend.memHistory
+                                lineColor: "#2196F3"
+                                fixedMax: 100
+                                suffix: "%"
+                                showGradient: true
+                            }
+                        }
+                    }
                 }
             }
 
