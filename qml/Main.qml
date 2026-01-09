@@ -610,7 +610,9 @@ Window {
                             suffix: "%"
                         }
 
-                        Rectangle { Layout.fillWidth: true; height: 3; color: "#333333" }
+                        Rectangle { 
+                            Layout.fillWidth: true; height: 3; color: "#333333" 
+                        }
 
                         // 3. Network
                         LineChart {
