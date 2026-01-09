@@ -27,14 +27,15 @@ class SystemMonitor : public QObject
     Q_PROPERTY(QVariantMap batDetails READ batDetails NOTIFY statsChanged)
     Q_PROPERTY(QVariantList cpuHistory READ cpuHistory NOTIFY statsChanged)
     Q_PROPERTY(QVariantList memHistory READ memHistory NOTIFY statsChanged)
+    // 网络历史
+    Q_PROPERTY(QVariantList netRxHistory READ netRxHistory NOTIFY statsChanged)
+    Q_PROPERTY(QVariantList netTxHistory READ netTxHistory NOTIFY statsChanged)
+    // 实时网速字符串
+    Q_PROPERTY(QString netRxSpeed READ netRxSpeed NOTIFY statsChanged)
+    Q_PROPERTY(QString netTxSpeed READ netTxSpeed NOTIFY statsChanged)
 
 public:
     explicit SystemMonitor(QObject *parent = nullptr) : QObject(parent) {
-        for(int i=0; i<60; ++i) {
-            m_cpuHistory.append(0.0);
-            m_memHistory.append(0.0);
-        }
-
         int coreCount = QThread::idealThreadCount();
         if (coreCount < 1) coreCount = 1;
         
@@ -42,6 +43,13 @@ public:
         m_prevIdle.resize(coreCount + 1);
         m_prevTotal.fill(0);
         m_prevIdle.fill(0);
+
+        for(int i=0; i<60; ++i) {
+            m_cpuHistory.append(0.0);
+            m_memHistory.append(0.0);
+            m_netRxHistory.append(0.0);
+            m_netTxHistory.append(0.0);
+        }
 
         connect(&m_timer, &QTimer::timeout, this, &SystemMonitor::updateStats);
         m_timer.start(1000);
@@ -60,6 +68,10 @@ public:
     QVariantMap batDetails() const { return m_batDetails; }
     QVariantList cpuHistory() const { return m_cpuHistory; }
     QVariantList memHistory() const { return m_memHistory; }
+    QVariantList netRxHistory() const { return m_netRxHistory; }
+    QVariantList netTxHistory() const { return m_netTxHistory; }
+    QString netRxSpeed() const { return m_netRxSpeed; }
+    QString netTxSpeed() const { return m_netTxSpeed; }
 
 signals:
     void statsChanged();
@@ -72,6 +84,7 @@ private slots:
         readBatteryInfo();
         updateHistory(m_cpuHistory, m_cpuTotal * 100.0);
         updateHistory(m_memHistory, m_memPercent * 100.0);
+        readNetworkInfo();
         emit statsChanged();
     }
 
@@ -231,6 +244,91 @@ private:
         m_batDetails = details;
     }
 
+    // --- 网络监控逻辑 ---
+    void readNetworkInfo() {
+        QFile file("/proc/net/dev");
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return;
+
+        QTextStream in(&file);
+        // 跳过前两行表头
+        in.readLine(); 
+        in.readLine();
+
+        unsigned long long totalRx = 0;
+        unsigned long long totalTx = 0;
+
+        while (!in.atEnd()) {
+            QString line = in.readLine().simplified();
+            QStringList parts = line.split(' ');
+            if (parts.size() < 10) continue;
+
+            QString iface = parts[0];
+            // 【过滤逻辑】排除 lo, tun, bond 等非物理流量
+            if (iface.startsWith("lo") || iface.startsWith("tun") || iface.startsWith("bond")) continue;
+
+            // /proc/net/dev 格式: interface: rx_bytes ... tx_bytes ...
+            // 注意: sometimes "eth0:" is one part, sometimes "eth0" ":" are separate. simplified() helps.
+            // parts[0] is "wlan0:", parts[1] is rx_bytes.
+            // But if space is missing "wlan0:123", we need careful parsing.
+            // Qt split(' ') on simplified string handles "wlan0: 123" -> ["wlan0:", "123"]
+            
+            // 处理粘连情况 "wlan0:123" vs "wlan0: 123"
+            QString name = parts[0];
+            unsigned long long rx = 0;
+            unsigned long long tx = 0;
+            
+            // 简单处理：如果 parts[1] 是数字，通常就是 rx_bytes
+            // Tx bytes 通常在第 9 列 (索引8，如果没粘连)
+            // 这是一个简化解析，对于标准 Linux 内核通常有效
+            // 稳健解析：
+            QStringList cleanParts;
+            for (const QString &p : parts) {
+                 // 有些行可能是 "wlan0:3434"，需要拆分
+                 if (p.contains(":") && p.length() > 1) {
+                     QStringList sub = p.split(":");
+                     if (!sub[0].isEmpty()) cleanParts.append(sub[0] + ":");
+                     if (sub.size() > 1 && !sub[1].isEmpty()) cleanParts.append(sub[1]);
+                 } else {
+                     cleanParts.append(p);
+                 }
+            }
+
+            if (cleanParts.size() > 9) {
+                rx = cleanParts[1].toULongLong();
+                tx = cleanParts[9].toULongLong();
+                totalRx += rx;
+                totalTx += tx;
+            }
+        }
+
+        // 计算瞬时速度 (Bytes per second)
+        // 第一次运行时 prev 为 0，速度会巨大，忽略第一次
+        if (m_prevTotalRx > 0) {
+            unsigned long long diffRx = (totalRx >= m_prevTotalRx) ? (totalRx - m_prevTotalRx) : 0;
+            unsigned long long diffTx = (totalTx >= m_prevTotalTx) ? (totalTx - m_prevTotalTx) : 0;
+
+            // 转为 KB/s 存入历史图表
+            double rxKB = diffRx / 1024.0;
+            double txKB = diffTx / 1024.0;
+            
+            updateHistory(m_netRxHistory, rxKB);
+            updateHistory(m_netTxHistory, txKB);
+
+            // 格式化显示文本 (动态单位 B/s, KB/s, MB/s)
+            m_netRxSpeed = formatSpeed(diffRx);
+            m_netTxSpeed = formatSpeed(diffTx);
+        }
+
+        m_prevTotalRx = totalRx;
+        m_prevTotalTx = totalTx;
+    }
+
+    QString formatSpeed(unsigned long long bytes) {
+        if (bytes < 1024) return QString::number(bytes) + " B/s";
+        if (bytes < 1024 * 1024) return QString::number(bytes / 1024.0, 'f', 1) + " KB/s";
+        return QString::number(bytes / 1024.0 / 1024.0, 'f', 1) + " MB/s";
+    }
+
     QString readSysFile(const QString &path) {
         QFile file(path);
         if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -260,8 +358,14 @@ private:
     
     QVector<long> m_prevTotal;
     QVector<long> m_prevIdle;
+    unsigned long long m_prevTotalRx = 0;
+    unsigned long long m_prevTotalTx = 0;
 
     QVariantList m_cpuHistory;
     QVariantList m_memHistory;
+    QVariantList m_netRxHistory;
+    QVariantList m_netTxHistory;
+    QString m_netRxSpeed = "0 B/s";
+    QString m_netTxSpeed = "0 B/s";
 };
 #endif // SYSTEMMONITOR_H
