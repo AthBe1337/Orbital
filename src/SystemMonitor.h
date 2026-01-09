@@ -326,7 +326,8 @@ private:
     QString formatSpeed(unsigned long long bytes) {
         if (bytes < 1024) return QString::number(bytes) + " B/s";
         if (bytes < 1024 * 1024) return QString::number(bytes / 1024.0, 'f', 1) + " KB/s";
-        return QString::number(bytes / 1024.0 / 1024.0, 'f', 1) + " MB/s";
+        if (bytes < 1024 * 1024 * 1024) return QString::number(bytes / 1024.0 / 1024.0, 'f', 1) + " MB/s";
+        return QString::number(bytes / 1024.0 / 1024.0 / 1024.0, 'f', 1) + " GB/s";
     }
 
     QString readSysFile(const QString &path) {

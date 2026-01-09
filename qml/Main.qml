@@ -488,10 +488,68 @@ Window {
                 }
             }
 
+            // --- Row 2.5: Real-time Network Status ---
+            Rectangle {
+                Layout.fillWidth: true
+                height: 80
+                color: "#1e1e1e"
+                radius: 12
+                
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: 20
+                    spacing: 10
+
+                    // 图标/标题区域
+                    ColumnLayout {
+                        spacing: 2
+                        Text { text: "Network"; color: "white"; font.bold: true; font.pixelSize: 16 }
+                        Text { text: "Total Traffic"; color: "#666"; font.pixelSize: 12 }
+                    }
+
+                    Item { Layout.fillWidth: true } // 弹簧
+
+                    // 下载速度
+                    ColumnLayout {
+                        spacing: 2
+                        Layout.alignment: Qt.AlignRight
+                        Text { 
+                            text: "⬇ " + backend.netRxSpeed
+                            color: "#00E676" // 绿色
+                            font.family: "Monospace"
+                            font.bold: true
+                            font.pixelSize: 15
+                            Layout.alignment: Qt.AlignRight
+                        }
+                        Text { text: "Download"; color: "#666"; font.pixelSize: 10; Layout.alignment: Qt.AlignRight }
+                    }
+                    
+                    // 分割线
+                    Rectangle { width: 1; height: 30; color: "#333" }
+
+                    // 上传速度
+                    ColumnLayout {
+                        spacing: 2
+                        Layout.alignment: Qt.AlignRight
+                        Text { 
+                            text: "⬆ " + backend.netTxSpeed
+                            color: "#FF9800" // 橙色
+                            font.family: "Monospace"
+                            font.bold: true
+                            font.pixelSize: 15
+                            Layout.alignment: Qt.AlignRight
+                            Layout.preferredWidth: 112
+                            horizontalAlignment: Text.AlignRight
+                        }
+                        Text { text: "Upload"; color: "#666"; font.pixelSize: 10; Layout.alignment: Qt.AlignRight }
+                    }
+                }
+            }
+
             // --- Row 3: 历史数据图表 ---
             Rectangle {
                 Layout.fillWidth: true
-                height: 380
+                height: 500
                 color: "#1e1e1e"
                 radius: 12
                 
@@ -550,6 +608,26 @@ Window {
                             ]
                             fixedMax: 100
                             suffix: "%"
+                        }
+
+                        Rectangle { Layout.fillWidth: true; height: 3; color: "#333333" }
+
+                        // 3. 【新增】Network
+                        LineChart {
+                            Layout.fillWidth: true; Layout.fillHeight: true
+                            chartTitle: "Network I/O"
+                            
+                            // 双曲线
+                            datasets: [
+                                { label: "Down", values: backend.netRxHistory, color: "#00E676" },
+                                { label: "Up",   values: backend.netTxHistory, color: "#FF9800" }
+                            ]
+                            
+                            // 开启自动缩放
+                            fixedMax: -1 
+                            // 历史记录统一用 KB/s，避免单位跳变导致图表乱跳
+                            // (虽然主页卡片显示 MB/s，但折线图保持统一单位更稳定)
+                            suffix: " KB/s" 
                         }
                     }
                 }
