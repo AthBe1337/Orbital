@@ -33,6 +33,7 @@ class SystemMonitor : public QObject
     // 实时网速字符串
     Q_PROPERTY(QString netRxSpeed READ netRxSpeed NOTIFY statsChanged)
     Q_PROPERTY(QString netTxSpeed READ netTxSpeed NOTIFY statsChanged)
+    Q_PROPERTY(int brightness READ brightness WRITE setBrightness NOTIFY brightnessChanged)
 
 public:
     explicit SystemMonitor(QObject *parent = nullptr) : QObject(parent) {
@@ -50,6 +51,8 @@ public:
             m_netRxHistory.append(0.0);
             m_netTxHistory.append(0.0);
         }
+
+        findBacklightPath();
 
         connect(&m_timer, &QTimer::timeout, this, &SystemMonitor::updateStats);
         m_timer.start(1000);
@@ -72,9 +75,29 @@ public:
     QVariantList netTxHistory() const { return m_netTxHistory; }
     QString netRxSpeed() const { return m_netRxSpeed; }
     QString netTxSpeed() const { return m_netTxSpeed; }
+    int brightness() const { return m_brightnessPercent; }
+
+    void setBrightness(int percent) {
+        if (percent < 0) percent = 0;
+        if (percent > 100) percent = 100;
+        
+        if (m_brightnessPercent == percent) return;
+
+        m_brightnessPercent = percent;
+        
+        if (!m_backlightPath.isEmpty() && m_maxBrightness > 0) {
+            // 计算实际数值 (例如 max=255, 50% -> 127)
+            int actualVal = (int)((double)percent / 100.0 * m_maxBrightness);
+            // 写入系统文件
+            writeSysFile(m_backlightPath + "/brightness", QString::number(actualVal));
+        }
+
+        emit brightnessChanged();
+    }
 
 signals:
     void statsChanged();
+    void brightnessChanged();
 
 private slots:
     void updateStats() {
@@ -85,6 +108,7 @@ private slots:
         updateHistory(m_cpuHistory, m_cpuTotal * 100.0);
         updateHistory(m_memHistory, m_memPercent * 100.0);
         readNetworkInfo();
+        // readBrightness();
         emit statsChanged();
     }
 
@@ -338,11 +362,50 @@ private:
         return "";
     }
 
+    void writeSysFile(const QString &path, const QString &value) {
+        QFile file(path);
+        if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QTextStream out(&file);
+            out << value;
+        } else {
+            qDebug() << "Failed to write to" << path;
+        }
+    }
+
     QString formatSize(qint64 bytes) {
         if (bytes < 1024) return QString::number(bytes) + " B";
         if (bytes < 1024 * 1024) return QString::number(bytes / 1024.0, 'f', 1) + " KB";
         if (bytes < 1024 * 1024 * 1024) return QString::number(bytes / 1024.0 / 1024.0, 'f', 1) + " MB";
         return QString::number(bytes / 1024.0 / 1024.0 / 1024.0, 'f', 1) + " GB";
+    }
+
+    void findBacklightPath() {
+        QDir dir("/sys/class/backlight/");
+        QStringList entries = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+        if (!entries.isEmpty()) {
+            // 通常使用第一个找到的设备
+            m_backlightPath = dir.filePath(entries.first());
+            
+            // 读取最大亮度
+            QString maxStr = readSysFile(m_backlightPath + "/max_brightness");
+            m_maxBrightness = maxStr.toInt();
+            
+            // 读取当前亮度以初始化 UI
+            readBrightness();
+        }
+    }
+
+    void readBrightness() {
+        if (m_backlightPath.isEmpty() || m_maxBrightness <= 0) return;
+        
+        QString curStr = readSysFile(m_backlightPath + "/brightness");
+        int currentVal = curStr.toInt();
+        
+        int percent = (int)((double)currentVal / m_maxBrightness * 100.0);
+        if (percent != m_brightnessPercent) {
+            m_brightnessPercent = percent;
+            emit brightnessChanged();
+        }
     }
 
     QTimer m_timer;
@@ -368,5 +431,8 @@ private:
     QVariantList m_netTxHistory;
     QString m_netRxSpeed = "0 B/s";
     QString m_netTxSpeed = "0 B/s";
+    QString m_backlightPath;
+    int m_maxBrightness = 0;
+    int m_brightnessPercent = 50; // 默认值
 };
 #endif // SYSTEMMONITOR_H
