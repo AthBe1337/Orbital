@@ -61,7 +61,6 @@ Window {
         width: parent.width * 0.85
         height: parent.height * 0.6
         modal: true
-        focus: true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
         
         Overlay.modal: Rectangle { color: "#aa000000" }
@@ -96,6 +95,7 @@ Window {
             }
 
             ListView {
+                focus: true
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 // 左右留白，防止滚动条贴边
@@ -185,6 +185,7 @@ Window {
             }
             
             ListView {
+                focus: true
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.leftMargin: 15
@@ -307,6 +308,7 @@ Window {
             
             // 使用 ListView 替代 GridLayout，处理长内容更灵活
             ListView {
+                focus: true
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.leftMargin: 25
@@ -353,6 +355,7 @@ Window {
         id: stackView
         anchors.fill: parent
         initialItem: homePage
+        focus: true
         
         // 自定义页面切换动画 (推入/推出)
         pushEnter: Transition {
