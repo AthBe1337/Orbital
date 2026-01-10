@@ -373,14 +373,14 @@ Window {
         id: drawer
         width: window.width * 0.6
         height: window.height
-        z: 999      
+        z: position > 0 ? 999 : 1      
         // 从左侧滑出
         edge: Qt.LeftEdge 
         
         // 允许用户从屏幕左边缘滑出
         interactive: stackView.depth === 1 
 
-        dragMargin: window.width * 0.15
+        dragMargin: window.width * 0.2
 
         background: Rectangle {
             color: "#1a1a1a"
@@ -484,10 +484,11 @@ Window {
     Component {
         id: homePage
         Item {
-            // contentHeight: mainCol.height + 40
-            // clip: true
-            // flickableDirection: Flickable.VerticalFlick
-
+            Rectangle { 
+                anchors.fill: parent
+                color: "#121212"
+                z: -1 // 放在最底层作为背景
+            }
             ColumnLayout {
                 id: mainCol
                 width: parent.width - 20
