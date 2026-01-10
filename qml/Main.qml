@@ -356,6 +356,7 @@ Window {
         anchors.fill: parent
         initialItem: homePage
         focus: true
+        z: 0
         
         // 自定义页面切换动画 (推入/推出)
         pushEnter: Transition {
