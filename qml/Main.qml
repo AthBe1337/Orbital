@@ -534,7 +534,23 @@ Window {
                                 }
                             }
                         }
-                        TapHandler { id: tapCpu; enabled: !cpuDetailsPopup.visible; onTapped: cpuDetailsPopup.open() }
+                        TapHandler { 
+                            id: tapCpu
+                            enabled: !cpuDetailsPopup.visible
+                            onTapped: {
+                                if (!cpuDetailsPopup.visible) {
+                                    cpuDetailsPopup.open()
+                                }
+                            }
+                            // 防止多点触控干扰
+                            acceptedButtons: Qt.LeftButton
+                            // 设置适当的阈值
+                            gesturePolicy: TapHandler.WithinBounds
+                            // 处理取消事件
+                            onCanceled: {
+                                // 清理状态
+                            }
+                        }
                     }
 
                     // Memory Card
@@ -592,7 +608,23 @@ Window {
                                 Layout.alignment: Qt.AlignHCenter // 确保文字居中
                             }
                         }
-                        TapHandler { id: tapDisk; enabled: !diskPopup.visible; onTapped: diskPopup.open() }
+                        TapHandler { 
+                            id: tapDisk
+                            enabled: !diskPopup.visible
+                            onTapped: {
+                                if (!diskPopup.visible) {
+                                    diskPopup.open()
+                                }
+                            }
+                            // 防止多点触控干扰
+                            acceptedButtons: Qt.LeftButton
+                            // 设置适当的阈值
+                            gesturePolicy: TapHandler.WithinBounds
+                            // 处理取消事件
+                            onCanceled: {
+                                // 清理状态
+                            }
+                        }
                     }
 
                     // Battery Card
@@ -619,7 +651,23 @@ Window {
                                 Layout.alignment: Qt.AlignHCenter // 确保文字居中
                             }
                         }
-                        TapHandler { id: tapBat; enabled: !batPopup.visible; onTapped: batPopup.open() }
+                        TapHandler { 
+                            id: tapBat
+                            enabled: !batPopup.visible
+                            onTapped: {
+                                if (!batPopup.visible) {
+                                    batPopup.open()
+                                }
+                            }
+                            // 防止多点触控干扰
+                            acceptedButtons: Qt.LeftButton
+                            // 设置适当的阈值
+                            gesturePolicy: TapHandler.WithinBounds
+                            // 处理取消事件
+                            onCanceled: {
+                                // 清理状态
+                            }
+                        }
                     }
                 }
 
