@@ -540,7 +540,7 @@ Window {
                         Layout.alignment: Qt.AlignHCenter
                     }
                     Text {
-                        text: "Orbital OS"
+                        text: "Orbital"
                         color: "white"
                         font.bold: true
                         font.pixelSize: 18
@@ -596,7 +596,7 @@ Window {
             
             // 底部版本号
             Text {
-                text: "v0.2.0-alpha"
+                text: appBuildHash + "-alpha"
                 color: "#555"
                 font.pixelSize: 10
                 Layout.alignment: Qt.AlignHCenter

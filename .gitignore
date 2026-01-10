@@ -2,3 +2,5 @@ build*/
 *.user
 .vscode/
 CMakeLists.txt.user
+dist/
+deploy.sh
