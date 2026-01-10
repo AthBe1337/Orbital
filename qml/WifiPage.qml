@@ -162,7 +162,7 @@ Page {
                 visible: backend.wifiEnabled
 
                 delegate: ItemDelegate {
-                    width: parent.width
+                    width: ListView.view ? ListView.view.width : 0
                     height: 64
                     
                     background: Rectangle { color: parent.down ? "#2a2a2a" : "transparent" }
