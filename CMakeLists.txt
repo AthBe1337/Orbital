@@ -54,6 +54,10 @@ qt_add_qml_module(appOrbital
         qml/SettingsPage.qml
     RESOURCES
         assets/logo.svg
+        assets/power.svg
+        assets/restart.svg
+        assets/refresh.svg
+        assets/settings.svg
 )
 
 # 链接库

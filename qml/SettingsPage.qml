@@ -136,7 +136,7 @@ Rectangle {
                         anchors.fill: parent; anchors.margins: 15
                         Text { text: "About"; color: "white"; font.bold: true; font.pixelSize: 16 }
                         Item { Layout.fillWidth: true }
-                        Text { text: "Orbital OS v0.2"; color: "#555"; font.italic: true }
+                        Text { text: "Orbital " + appBuildHash; color: "#555"; font.italic: true }
                     }
                 }
 

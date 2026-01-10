@@ -14,6 +14,7 @@
 #include <QNetworkInterface>
 #include <QSocketNotifier>
 #include <QGuiApplication>
+#include <QProcess>
 
 #include <linux/input.h>
 #include <fcntl.h>
@@ -117,6 +118,11 @@ public:
         }
 
         if (needWrite) emit brightnessChanged();
+    }
+
+    Q_INVOKABLE void systemCmd(const QString &cmd) {
+        if (cmd == "reboot") QProcess::execute("reboot");
+        if (cmd == "poweroff") QProcess::execute("poweroff");
     }
 
 signals:

@@ -496,25 +496,20 @@ Window {
 
     Drawer {
         id: drawer
-        width: window.width * 0.55
+        width: window.width * 0.65 // 稍微加宽一点，让大图标看起来更舒服
         height: window.height
         z: position > 0 ? 999 : 1      
-        // 从左侧滑出
         edge: Qt.LeftEdge 
-        
-        // 允许用户从屏幕左边缘滑出
         interactive: stackView.depth === 1 
-
         dragMargin: window.width * 0.2
 
         background: Rectangle {
-            color: "#1a1a1a"
-            // 右侧阴影模拟层级感
+            color: "#121212" // 整体背景加深
             layer.enabled: true
+            // 右侧分割线/阴影
             Rectangle {
                 anchors.right: parent.right
-                width: 1
-                height: parent.height
+                width: 1; height: parent.height
                 color: "#333"
             }
         }
@@ -523,84 +518,182 @@ Window {
             anchors.fill: parent
             spacing: 0
 
-            // 1. 菜单头部 (用户/Logo区域)
+            // ==========================================
+            // 1. 顶部 Logo 区域 (占据 45% 高度)
+            // ==========================================
             Rectangle {
                 Layout.fillWidth: true
-                height: 150
-                color: "#252525"
+                Layout.preferredHeight: parent.height * 0.45
                 
+                // 渐变背景，提升质感
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: "#252525" }
+                    GradientStop { position: 1.0; color: "#1a1a1a" }
+                }
+
                 ColumnLayout {
                     anchors.centerIn: parent
-                    spacing: 10
-                    // Logo
-                    IconImage {
-                        source: "qrc:/MyDesktop/Backend/assets/logo.svg"
-                        sourceSize: Qt.size(48, 48)
-                        color: "white"
+                    spacing: 20
+
+                    // 大 Logo
+                    Rectangle {
                         Layout.alignment: Qt.AlignHCenter
+                        width: 96; height: 96
+                        color: "transparent"
+                        
+                        // 外部光晕效果 (可选)
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: 80; height: 80
+                            radius: 40
+                            color: "#ffffff"
+                            opacity: 0.05
+                        }
+
+                        IconImage {
+                            anchors.centerIn: parent
+                            source: "qrc:/MyDesktop/Backend/assets/logo.svg"
+                            sourceSize: Qt.size(80, 80) // 放大图标
+                            color: "white"
+                        }
                     }
-                    Text {
-                        text: "Orbital"
-                        color: "white"
-                        font.bold: true
-                        font.pixelSize: 18
+
+                    // 文字信息
+                    ColumnLayout {
+                        spacing: 5
+                        Text {
+                            text: "Orbital OS"
+                            color: "white"
+                            font.bold: true
+                            font.pixelSize: 22
+                            font.letterSpacing: 2
+                            Layout.alignment: Qt.AlignHCenter
+                        }
+                        
+                        // 版本号 Hash
+                        Text {
+                            text: "Build " + (typeof appBuildHash !== "undefined" ? appBuildHash.substring(0, 7) : "DEV")
+                            color: "#666"
+                            font.family: "Monospace"
+                            font.pixelSize: 12
+                            Layout.alignment: Qt.AlignHCenter
+                        }
                     }
                 }
             }
 
-            // 2. 菜单列表
+            // 分割线
+            Rectangle { Layout.fillWidth: true; height: 1; color: "#333" }
+
+            // ==========================================
+            // 2. 底部功能按键区域 (剩余空间)
+            // ==========================================
             ListView {
+                id: menuList
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
-                model: ListModel {
-                    ListElement { name: "Settings"; icon: "settings"; page: "settings" }
-                }
+                interactive: false // 禁止滚动，固定布局
                 
+                // 顶部留白
+                header: Item { height: 20 }
+
+                model: ListModel {
+                    // Settings
+                    ListElement { 
+                        name: "Settings"; 
+                        icon: "settings.svg"; 
+                        action: "settings"; 
+                        itemColor: "white" 
+                    }
+                    // Reset Desktop (Exit 42)
+                    ListElement { 
+                        name: "Reset Desktop"; 
+                        icon: "refresh.svg";
+                        action: "reset"; 
+                        itemColor: "#12E7FF"
+                    }
+                    // Reboot
+                    ListElement { 
+                        name: "Reboot"; 
+                        icon: "restart.svg";
+                        action: "reboot"; 
+                        itemColor: "#FF9800"
+                    }
+                    // Power Off
+                    ListElement { 
+                        name: "Shut Down"; 
+                        icon: "power.svg";
+                        action: "shutdown"; 
+                        itemColor: "#FF5252"
+                    }
+                }
+
                 delegate: ItemDelegate {
                     width: parent.width
-                    height: 50
-                    
-                    contentItem: RowLayout {
-                        spacing: 15
-                        // 简单的图标占位 (实际可用 SVG)
-                        Rectangle {
-                            width: 24; height: 24; color: "transparent"
-                            Text { 
-                                text: model.icon === "home" ? "🏠" : "⚙️"
-                                color: "white"
-                                anchors.centerIn: parent
-                            }
-                        }
-                        Text {
-                            text: model.name
-                            color: "white"
-                            font.pixelSize: 16
-                        }
-                    }
+                    height: 65
                     
                     background: Rectangle {
-                        color: parent.down ? "#333" : "transparent"
+                        color: parent.down ? "#2a2a2a" : "transparent"
+                        Rectangle {
+                            width: 4; height: parent.height
+                            color: model.itemColor
+                            visible: parent.parent.down
+                        }
+                    }
+
+                    contentItem: RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 30
+                        anchors.rightMargin: 30
+                        spacing: 20
+
+                        // 图标
+                        IconImage {
+                            source: "qrc:/MyDesktop/Backend/assets/" + model.icon
+                            sourceSize: Qt.size(24, 24)
+                            color: model.itemColor // 图标颜色跟随定义
+                            Layout.alignment: Qt.AlignVCenter
+                        }
+
+                        // 文字
+                        Text {
+                            text: model.name
+                            color: model.itemColor
+                            font.pixelSize: 16
+                            font.bold: true
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignVCenter
+                        }
+                        
+                        // 右箭头
+                        Text {
+                            text: "›"
+                            color: "#444"
+                            font.pixelSize: 20
+                            visible: model.action === "settings"
+                        }
                     }
 
                     onClicked: {
+                        // 稍微延迟关闭，让用户看到点击动画
                         drawer.close()
-                        if (model.page === "settings") {
+                        
+                        if (model.action === "settings") {
                             stackView.push(settingsPage)
-                        } else {
-                            stackView.pop(null) // 回到首页
+                        } 
+                        else if (model.action === "reset") {
+                            // 触发 Exit 42，配合 run.sh 重启
+                            Qt.exit(42)
+                        }
+                        else if (model.action === "reboot") {
+                            backend.systemCmd("reboot")
+                        }
+                        else if (model.action === "shutdown") {
+                            backend.systemCmd("poweroff")
                         }
                     }
                 }
-            }
-            
-            // 底部版本号
-            Text {
-                text: appBuildHash + "-alpha"
-                color: "#555"
-                font.pixelSize: 10
-                Layout.alignment: Qt.AlignHCenter
-                Layout.bottomMargin: 20
             }
         }
     }
