@@ -146,7 +146,9 @@ Rectangle {
 
                 Rectangle {
                     Layout.fillWidth: true; Layout.leftMargin: 20; Layout.rightMargin: 20
-                    height: 60; color: "#1e1e1e"; radius: 12
+                    height: 60
+                    color: tapWifi.pressed ? "#2a2a2a" : "#1e1e1e"
+                    radius: 12
                     
                     RowLayout {
                         anchors.fill: parent; anchors.margins: 15
@@ -168,6 +170,7 @@ Rectangle {
                     }
                     
                     TapHandler {
+                        id: tapWifi
                         onTapped: {
                             // 跳转到 WiFi 页面
                             stackView.push("qrc:/MyDesktop/Backend/qml/WifiPage.qml", { "backend": sysMon })
@@ -180,7 +183,7 @@ Rectangle {
                     Layout.leftMargin: 20
                     Layout.rightMargin: 20
                     height: 60
-                    color: "#1e1e1e"
+                    color: tapAbout.pressed ? "#2a2a2a" : "#1e1e1e"
                     radius: 12
                     RowLayout {
                         anchors.fill: parent; anchors.margins: 15
@@ -192,6 +195,14 @@ Rectangle {
                             text: "About"
                             color: "white"; font.pixelSize: 16; font.bold: true
                             Layout.fillWidth: true; Layout.leftMargin: 10
+                        }
+                    }
+
+                    tapHandler {
+                        id: tapAbout
+                        onTapped: {
+                            // 显示关于信息
+                            // stackView.push("qrc:/MyDesktop/Backend/qml/AboutPage.qml")
                         }
                     }
                 }
