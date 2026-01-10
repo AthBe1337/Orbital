@@ -383,7 +383,7 @@ private:
         QDir dir("/sys/class/backlight/");
         QStringList entries = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
         if (!entries.isEmpty()) {
-            // 通常使用第一个找到的设备
+            // 使用第一个找到的设备
             m_backlightPath = dir.filePath(entries.first());
             
             // 读取最大亮度
