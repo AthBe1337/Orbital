@@ -18,7 +18,7 @@ Page {
         height: 220
         modal: true
         focus: true
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        closePolicy: customKeyboard.visible ? Popup.NoAutoClose : (Popup.CloseOnEscape | Popup.CloseOnPressOutside)
         
         y: Qt.inputMethod.visible ? (parent.height - height) / 2 - 100 : (parent.height - height) / 2
 
@@ -46,8 +46,14 @@ Page {
                 echoMode: TextInput.Password
                 color: "white"
                 background: Rectangle { color: "#2d2d2d"; radius: 6 }
-                inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhSensitiveData | Qt.ImhHiddenText
+                inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase | Qt.ImhSensitiveData | Qt.ImhHiddenText
                 onAccepted: connectBtn.clicked()
+                onActiveFocusChanged: {
+                    if (activeFocus) {
+                        customKeyboard.target = passInput // 绑定目标
+                        customKeyboard.visible = true     // 显示键盘
+                    }
+                }
             }
 
             RowLayout {
@@ -74,6 +80,12 @@ Page {
             }
         }
         onOpened: passInput.forceActiveFocus()
+        
+        // 弹窗关闭时收起键盘
+        onClosed: {
+            customKeyboard.visible = false
+            passInput.focus = false
+        }
     }
 
     // --- 主界面 ---
@@ -292,5 +304,23 @@ Page {
 
     Component.onCompleted: {
         if (backend.wifiEnabled) backend.scanWifiNetworks()
+    }
+
+    CustomKeyboard {
+        id: customKeyboard
+        z: 999990 // 确保在最上层
+        width: parent.width // 撑满屏幕宽度
+        visible: false // 默认隐藏
+        
+        // 在 Wifi 页面，我们只需要普通模式
+        terminalMode: false 
+        
+        // 监听回车键 (Done/Enter)
+        onEnterClicked: {
+            // 如果是在密码框里按了回车，相当于点了连接
+            if (passPopup.opened) {
+                 passPopup.confirmConnect() // 假设你在 Popup 里封装了这个函数
+            }
+        }
     }
 }

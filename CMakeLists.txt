@@ -53,6 +53,7 @@ qt_add_qml_module(appOrbital
         qml/LineChart.qml
         qml/SettingsPage.qml
         qml/WifiPage.qml
+        qml/CustomKeyboard.qml
     RESOURCES
         assets/logo.svg
         assets/power.svg
@@ -74,6 +75,9 @@ qt_add_qml_module(appOrbital
         assets/info.svg
         assets/delete.svg
         assets/back.svg
+        assets/shift.svg
+        assets/shift-filled.svg
+        assets/backspace.svg
 )
 
 # 链接库

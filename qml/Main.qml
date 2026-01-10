@@ -1107,26 +1107,4 @@ Window {
             }
         }
     }
-
-    InputPanel {
-        id: inputPanel
-        z: 99999 // 确保永远在最上层，覆盖所有 Popup 和 Page
-        y: active ? parent.height - height : parent.height
-        anchors.left: parent.left
-        anchors.right: parent.right
-        
-        // 动画效果
-        transitions: Transition {
-            from: ""
-            to: "visible"
-            reversible: true
-            ParallelAnimation {
-                NumberAnimation {
-                    properties: "y"
-                    duration: 250
-                    easing.type: Easing.InOutQuad
-                }
-            }
-        }
-    }
 }
