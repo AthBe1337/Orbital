@@ -371,7 +371,7 @@ Window {
 
     Drawer {
         id: drawer
-        width: window.width * 0.6
+        width: window.width * 0.55
         height: window.height
         z: position > 0 ? 999 : 1      
         // 从左侧滑出
