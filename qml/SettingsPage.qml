@@ -24,21 +24,20 @@ Rectangle {
             
             RowLayout {
                 anchors.fill: parent
-                spacing: 0 // 移除间距，由按钮自己控制
-
-                // 【核心修复】增大返回按钮的点击区域
+                spacing: 0
+                anchors.leftMargin: 10
+                anchors.rightMargin: 15
                 ToolButton {
                     // 强制设置按钮大小为 48x48 (标准触控尺寸)
-                    Layout.preferredWidth: 48 
+                    Layout.preferredWidth: 52 
                     Layout.fillHeight: true 
                     
-                    // 自定义内容，确保箭头居中
-                    contentItem: Text { 
-                        text: "◀"
+                    // 使用 SVG 图标替换文本箭头
+                    contentItem: IconImage {
+                        anchors.centerIn: parent
+                        source: "qrc:/MyDesktop/Backend/assets/back.svg"
+                        sourceSize: Qt.size(48, 48)
                         color: "white"
-                        font.pixelSize: 20 // 稍微调大箭头
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
                     }
                     
                     background: Rectangle { 
@@ -53,8 +52,8 @@ Rectangle {
                     text: "Settings"
                     color: "white"
                     font.bold: true
-                    font.pixelSize: 18
-                    Layout.leftMargin: 10 // 文字左边距
+                    font.pixelSize: 25
+                    Layout.leftMargin: 5 // 文字左边距
                 }
                 
                 Item { Layout.fillWidth: true }

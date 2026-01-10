@@ -83,18 +83,40 @@ Page {
 
         // 1. 标题栏
         Rectangle {
-            Layout.fillWidth: true; height: 60; color: "#1e1e1e"
+            Layout.fillWidth: true; height: 52; color: "#1e1e1e"
             RowLayout {
                 anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 15
                 ToolButton {
-                    contentItem: Text { text: "◀"; color: "white"; font.pixelSize: 22 }
-                    background: Rectangle { color: "transparent" }
+                    // 强制设置按钮大小为 48x48 (标准触控尺寸)
+                    Layout.preferredWidth: 52 
+                    Layout.fillHeight: true 
+                    
+                    // 使用 SVG 图标替换文本箭头
+                    contentItem: IconImage {
+                        anchors.centerIn: parent
+                        source: "qrc:/MyDesktop/Backend/assets/back.svg"
+                        sourceSize: Qt.size(48, 48)
+                        color: "white"
+                    }
+                    
+                    background: Rectangle { 
+                        color: parent.pressed ? "#333" : "transparent" 
+                    }
+                    
+                    // 发出信号
                     onClicked: stackView.pop()
                 }
                 Text { text: "WLAN"; color: "white"; font.bold: true; font.pixelSize: 20 }
                 Item { Layout.fillWidth: true }
                 ToolButton {
-                    contentItem: IconImage { source: "qrc:/MyDesktop/Backend/assets/refresh.svg"; sourceSize: Qt.size(20,20); color: "white" }
+                    Layout.preferredWidth: 52 
+                    Layout.fillHeight: true 
+                    contentItem: IconImage { 
+                        anchors.centerIn: parent
+                        source: "qrc:/MyDesktop/Backend/assets/refresh.svg"
+                        sourceSize: Qt.size(30,30)
+                        color: "white"
+                    }
                     background: Rectangle { color: parent.pressed ? "#333" : "transparent"; radius: 4 }
                     onClicked: backend.scanWifiNetworks()
                     visible: backend.wifiEnabled
@@ -113,7 +135,7 @@ Page {
                     checked: backend.wifiEnabled
                     onToggled: backend.wifiEnabled = checked
                     indicator: Rectangle {
-                        implicitWidth: 48; implicitHeight: 26; radius: 13; color: parent.checked ? "#00E676" : "#333"
+                        implicitWidth: 48; implicitHeight: 26; radius: 13; color: parent.checked ? "#26A8FF" : "#333"
                         Rectangle { x: parent.parent.checked ? parent.width - width - 2 : 2; y: 2; width: 22; height: 22; radius: 11; color: "white"; Behavior on x { NumberAnimation { duration: 200 } } }
                     }
                 }
@@ -194,8 +216,8 @@ Page {
                                 // 动态拼接文件名: wifi_0.svg ... wifi_4.svg
                                 source: "qrc:/MyDesktop/Backend/assets/wifi_" + parent.signalLevel + ".svg"
                                 sourceSize: Qt.size(24, 24)
-                                // 已连接显示绿色，否则白色
-                                color: modelData.connected ? "#00E676" : "white"
+                                // 已连接显示蓝色，否则白色
+                                color: modelData.connected ? "#26A8FF" : "white"
                             }
                         }
 
@@ -207,7 +229,7 @@ Page {
                             
                             Text { 
                                 text: modelData.ssid
-                                color: modelData.connected ? "#00E676" : "white"
+                                color: modelData.connected ? "#26A8FF" : "white"
                                 font.bold: true
                                 font.pixelSize: 16
                                 elide: Text.ElideRight
@@ -241,7 +263,7 @@ Page {
                                 anchors.centerIn: parent
                                 source: modelData.connected ? "qrc:/MyDesktop/Backend/assets/check.svg" : (modelData.secured ? "qrc:/MyDesktop/Backend/assets/lock.svg" : "")
                                 sourceSize: Qt.size(18, 18)
-                                color: modelData.connected ? "#00E676" : "#666"
+                                color: modelData.connected ? "#26A8FF" : "#666"
                             }
                         }
                     }
