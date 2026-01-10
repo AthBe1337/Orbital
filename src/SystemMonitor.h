@@ -12,6 +12,11 @@
 #include <QDebug>
 #include <QVariantList>
 #include <QNetworkInterface>
+#include <QSocketNotifier>
+
+#include <linux/input.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 class SystemMonitor : public QObject
 {
@@ -28,14 +33,14 @@ class SystemMonitor : public QObject
     Q_PROPERTY(QVariantMap batDetails READ batDetails NOTIFY statsChanged)
     Q_PROPERTY(QVariantList cpuHistory READ cpuHistory NOTIFY statsChanged)
     Q_PROPERTY(QVariantList memHistory READ memHistory NOTIFY statsChanged)
-    // 网络历史
     Q_PROPERTY(QVariantList netRxHistory READ netRxHistory NOTIFY statsChanged)
     Q_PROPERTY(QVariantList netTxHistory READ netTxHistory NOTIFY statsChanged)
-    // 实时网速字符串
     Q_PROPERTY(QString netRxSpeed READ netRxSpeed NOTIFY statsChanged)
     Q_PROPERTY(QString netTxSpeed READ netTxSpeed NOTIFY statsChanged)
     Q_PROPERTY(int brightness READ brightness WRITE setBrightness NOTIFY brightnessChanged)
     Q_PROPERTY(QVariantList netInterfaces READ netInterfaces NOTIFY statsChanged)
+    
+    Q_PROPERTY(bool isScreenOn READ isScreenOn NOTIFY screenStateChanged)
 
 public:
     explicit SystemMonitor(QObject *parent = nullptr) : QObject(parent) {
@@ -54,13 +59,18 @@ public:
             m_netTxHistory.append(0.0);
         }
 
+        // 1. 先找到背光路径
         findBacklightPath();
+
+        // 2. 初始化电源键监听
+        initPowerKeyMonitor();
 
         connect(&m_timer, &QTimer::timeout, this, &SystemMonitor::updateStats);
         m_timer.start(1000);
         QTimer::singleShot(0, this, &SystemMonitor::updateStats);
     }
 
+    // --- Getters ---
     double cpuTotal() const { return m_cpuTotal; }
     QVariantList cpuCores() const { return m_cpuCores; }
     double memPercent() const { return m_memPercent; }
@@ -79,28 +89,39 @@ public:
     QString netTxSpeed() const { return m_netTxSpeed; }
     int brightness() const { return m_brightnessPercent; }
     QVariantList netInterfaces() const { return m_netInterfaces; }
+    bool isScreenOn() const { return m_isScreenOn; }
 
     void setBrightness(int percent) {
         if (percent < 0) percent = 0;
         if (percent > 100) percent = 100;
         
-        if (m_brightnessPercent == percent) return;
-
+        // 即使 percent 没变，如果屏幕刚被点亮，也需要重新写入硬件
+        bool needWrite = (m_brightnessPercent != percent);
         m_brightnessPercent = percent;
         
         if (!m_backlightPath.isEmpty() && m_maxBrightness > 0) {
-            // 计算实际数值 (例如 max=255, 50% -> 127)
+            // 确保屏幕是开启状态 (bl_power = 0)
+            if (!m_isScreenOn) {
+                // 如果在熄屏状态下调整亮度，是否要自动亮屏？通常不需要，除非用户明确操作。
+                // 这里我们只更新变量，不写硬件，除非屏幕是亮的。
+                emit brightnessChanged();
+                return; 
+            }
+
             int actualVal = (int)((double)percent / 100.0 * m_maxBrightness);
-            // 写入系统文件
+            // 某些驱动写入 0 会导致黑屏，设为 1 保证最低可见度
+            if (actualVal == 0 && percent > 0) actualVal = 1;
+            
             writeSysFile(m_backlightPath + "/brightness", QString::number(actualVal));
         }
 
-        emit brightnessChanged();
+        if (needWrite) emit brightnessChanged();
     }
 
 signals:
     void statsChanged();
     void brightnessChanged();
+    void screenStateChanged();
 
 private slots:
     void updateStats() {
@@ -111,12 +132,85 @@ private slots:
         updateHistory(m_cpuHistory, m_cpuTotal * 100.0);
         updateHistory(m_memHistory, m_memPercent * 100.0);
         readNetworkInfo();
-        // readBrightness();
+        // 实时亮度更新通常不需要 polling，除非系统自动亮度在变
+        // readBrightness(); 
         readNetworkInterfaceDetails();
         emit statsChanged();
     }
 
+    // 处理输入事件
+    void onInputEvent() {
+        struct input_event ev;
+        // 读取事件
+        while (read(m_inputFd, &ev, sizeof(ev)) > 0) {
+            // 类型必须是按键 (EV_KEY)
+            if (ev.type == EV_KEY) {
+                // 代码必须是电源键 (KEY_POWER = 116)
+                if (ev.code == KEY_POWER) {
+                    // value: 1=按下, 0=抬起, 2=长按
+                    // 我们只在按下时触发 (防止抬起时又触发一次)
+                    if (ev.value == 1) {
+                        qDebug() << "Power Key Pressed! Toggling Screen...";
+                        toggleScreen();
+                    }
+                }
+            }
+        }
+    }
+
 private:
+    void initPowerKeyMonitor() {
+        QString devPath = "/dev/input/event0"; 
+        
+        m_inputFd = open(devPath.toStdString().c_str(), O_RDONLY | O_NONBLOCK);
+        
+        if (m_inputFd < 0) {
+            qWarning() << "Failed to open input device:" << devPath << "Check permissions (sudo or udev)!";
+            return;
+        }
+
+        // 使用 QSocketNotifier 监听，这样不会阻塞 UI 线程
+        m_notifier = new QSocketNotifier(m_inputFd, QSocketNotifier::Read, this);
+        connect(m_notifier, &QSocketNotifier::activated, this, &SystemMonitor::onInputEvent);
+        
+        qDebug() << "Listening for Power Key on" << devPath;
+    }
+
+    void toggleScreen() {
+        m_isScreenOn = !m_isScreenOn;
+        
+        if (m_backlightPath.isEmpty()) return;
+
+        // bl_power 文件: 0 = 开启, 1 = 关闭 (低功耗模式)
+        // 这个文件通常和 brightness 在同一个目录下
+        QString blPowerPath = m_backlightPath + "/bl_power";
+
+        if (m_isScreenOn) {
+            // --- 亮屏逻辑 ---
+            qDebug() << "Screen ON";
+            writeSysFile(TOUCH_INHIBIT_PATH, "0");
+            // 1. 解除低功耗模式
+            writeSysFile(blPowerPath, "0");
+            
+            // 2. 恢复亮度 (写入之前的亮度值)
+            // 某些驱动在 bl_power=1 时会丢弃亮度值，所以唤醒时需要重写一遍
+            int actualVal = (int)((double)m_brightnessPercent / 100.0 * m_maxBrightness);
+            if (actualVal == 0) actualVal = 1; // 防止黑屏
+            writeSysFile(m_backlightPath + "/brightness", QString::number(actualVal));
+        } else {
+            qDebug() << "Screen OFF";
+            // 使用 bl_power 关闭是最彻底的，它会切断背光供电
+            writeSysFile(blPowerPath, "1");
+
+            writeSysFile(TOUCH_INHIBIT_PATH, "1");
+            
+            // 如果 bl_power 不起作用 (某些驱动不支持)，作为备选方案将亮度设为 0
+            // writeSysFile(m_backlightPath + "/brightness", "0");
+        }
+        
+        emit screenStateChanged();
+    }
+
     void updateHistory(QVariantList &list, double newValue) {
         if (list.size() >= 60) {
             list.removeFirst();
@@ -272,13 +366,11 @@ private:
         m_batDetails = details;
     }
 
-    // --- 网络监控逻辑 ---
     void readNetworkInfo() {
         QFile file("/proc/net/dev");
         if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return;
 
         QTextStream in(&file);
-        // 跳过前两行表头
         in.readLine(); 
         in.readLine();
 
@@ -291,27 +383,10 @@ private:
             if (parts.size() < 10) continue;
 
             QString iface = parts[0];
-            // 【过滤逻辑】排除 lo, tun, bond 等非物理流量
             if (iface.startsWith("lo") || iface.startsWith("tun") || iface.startsWith("bond")) continue;
 
-            // /proc/net/dev 格式: interface: rx_bytes ... tx_bytes ...
-            // 注意: sometimes "eth0:" is one part, sometimes "eth0" ":" are separate. simplified() helps.
-            // parts[0] is "wlan0:", parts[1] is rx_bytes.
-            // But if space is missing "wlan0:123", we need careful parsing.
-            // Qt split(' ') on simplified string handles "wlan0: 123" -> ["wlan0:", "123"]
-            
-            // 处理粘连情况 "wlan0:123" vs "wlan0: 123"
-            QString name = parts[0];
-            unsigned long long rx = 0;
-            unsigned long long tx = 0;
-            
-            // 简单处理：如果 parts[1] 是数字，通常就是 rx_bytes
-            // Tx bytes 通常在第 9 列 (索引8，如果没粘连)
-            // 这是一个简化解析，对于标准 Linux 内核通常有效
-            // 稳健解析：
             QStringList cleanParts;
             for (const QString &p : parts) {
-                 // 有些行可能是 "wlan0:3434"，需要拆分
                  if (p.contains(":") && p.length() > 1) {
                      QStringList sub = p.split(":");
                      if (!sub[0].isEmpty()) cleanParts.append(sub[0] + ":");
@@ -322,27 +397,21 @@ private:
             }
 
             if (cleanParts.size() > 9) {
-                rx = cleanParts[1].toULongLong();
-                tx = cleanParts[9].toULongLong();
-                totalRx += rx;
-                totalTx += tx;
+                totalRx += cleanParts[1].toULongLong();
+                totalTx += cleanParts[9].toULongLong();
             }
         }
 
-        // 计算瞬时速度 (Bytes per second)
-        // 第一次运行时 prev 为 0，速度会巨大，忽略第一次
         if (m_prevTotalRx > 0) {
             unsigned long long diffRx = (totalRx >= m_prevTotalRx) ? (totalRx - m_prevTotalRx) : 0;
             unsigned long long diffTx = (totalTx >= m_prevTotalTx) ? (totalTx - m_prevTotalTx) : 0;
 
-            // 转为 KB/s 存入历史图表
             double rxKB = diffRx / 1024.0;
             double txKB = diffTx / 1024.0;
             
             updateHistory(m_netRxHistory, rxKB);
             updateHistory(m_netTxHistory, txKB);
 
-            // 格式化显示文本 (动态单位 B/s, KB/s, MB/s)
             m_netRxSpeed = formatSpeed(diffRx);
             m_netTxSpeed = formatSpeed(diffTx);
         }
@@ -371,19 +440,16 @@ private:
         const auto interfaces = QNetworkInterface::allInterfaces();
 
         for (const QNetworkInterface &interface : interfaces) {
-            // 过滤掉完全无效的接口，但保留 lo (loopback) 因为 ip a 通常会显示它
             if (!interface.isValid()) continue;
 
             QVariantMap map;
-            map["name"] = interface.name(); // e.g., wlan0
-            map["mac"] = interface.hardwareAddress(); // e.g., AA:BB:CC...
+            map["name"] = interface.name();
+            map["mac"] = interface.hardwareAddress();
             
-            // 状态判断
             bool isUp = interface.flags().testFlag(QNetworkInterface::IsUp);
             bool isRunning = interface.flags().testFlag(QNetworkInterface::IsRunning);
             map["state"] = (isUp && isRunning) ? "UP" : "DOWN";
             
-            // 获取所有 IP 地址 (IPv4 & IPv6)
             QStringList ipList;
             for (const QNetworkAddressEntry &entry : interface.addressEntries()) {
                 ipList.append(entry.ip().toString());
@@ -416,14 +482,9 @@ private:
         QDir dir("/sys/class/backlight/");
         QStringList entries = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
         if (!entries.isEmpty()) {
-            // 使用第一个找到的设备
             m_backlightPath = dir.filePath(entries.first());
-            
-            // 读取最大亮度
             QString maxStr = readSysFile(m_backlightPath + "/max_brightness");
             m_maxBrightness = maxStr.toInt();
-            
-            // 读取当前亮度以初始化 UI
             readBrightness();
         }
     }
@@ -465,8 +526,15 @@ private:
     QString m_netRxSpeed = "0 B/s";
     QString m_netTxSpeed = "0 B/s";
     QVariantList m_netInterfaces;
+    
     QString m_backlightPath;
     int m_maxBrightness = 0;
-    int m_brightnessPercent = 50; // 默认值
+    int m_brightnessPercent = 50;
+    
+    int m_inputFd = -1;
+    QSocketNotifier *m_notifier = nullptr;
+    bool m_isScreenOn = true;
+
+    const QString TOUCH_INHIBIT_PATH = "/sys/devices/platform/soc@0/ac0000.geniqup/a90000.i2c/i2c-12/12-0020/rmi4-00/input/input5/inhibited";
 };
 #endif // SYSTEMMONITOR_H
