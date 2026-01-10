@@ -74,7 +74,7 @@ public:
         initPowerKeyMonitor();
 
         m_wifiTimer = new QTimer(this);
-        getWifiEnabled(); // 立即更新状态
+        initWifiEnabled(); // 立即更新状态
         // 设置间隔 5000ms (5秒)
         m_wifiTimer->setInterval(5000); 
         connect(m_wifiTimer, &QTimer::timeout, this, &SystemMonitor::scanWifiNetworks);
@@ -668,7 +668,7 @@ private:
         emit wifiListChanged();
     }
 
-    Q_INVOKABLE void getWifiEnabled() {
+    Q_INVOKABLE void initWifiEnabled() {
         QProcess proc;
         proc.start("nmcli", QStringList() << "radio" << "wifi");
         proc.waitForFinished();

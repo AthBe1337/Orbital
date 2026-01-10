@@ -175,7 +175,6 @@ Rectangle {
                     }
                 }
                 
-                // 占位：更多设置
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.leftMargin: 20
@@ -185,9 +184,15 @@ Rectangle {
                     radius: 12
                     RowLayout {
                         anchors.fill: parent; anchors.margins: 15
-                        Text { text: "About"; color: "white"; font.bold: true; font.pixelSize: 16 }
-                        Item { Layout.fillWidth: true }
-                        Text { text: "Orbital " + appBuildHash; color: "#555"; font.italic: true }
+                        IconImage { 
+                            source: "qrc:/MyDesktop/Backend/assets/info.svg"
+                            sourceSize: Qt.size(24, 24); color: "white" 
+                        }
+                        Text { 
+                            text: "About"
+                            color: "white"; font.pixelSize: 16; font.bold: true
+                            Layout.fillWidth: true; Layout.leftMargin: 10
+                        }
                     }
                 }
 
