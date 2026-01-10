@@ -10,84 +10,6 @@ Page {
     property var backend // 从外部传入 SystemMonitor 实例
     property string selectedSsid: ""
 
-    // --- 密码输入弹窗 ---
-    Popup {
-        id: passPopup
-        anchors.centerIn: parent
-        width: parent.width * 0.85
-        height: 220
-        modal: true
-        focus: true
-        closePolicy: customKeyboard.visible ? Popup.NoAutoClose : (Popup.CloseOnEscape | Popup.CloseOnPressOutside)
-        
-        y: Qt.inputMethod.visible ? (parent.height - height) / 2 - 100 : (parent.height - height) / 2
-
-        background: Rectangle {
-            color: "#1e1e1e"
-            radius: 12
-            border.color: "#333"
-            border.width: 1
-        }
-
-        ColumnLayout {
-            anchors.fill: parent; anchors.margins: 20
-            spacing: 15
-
-            Text { 
-                text: "Connect to " + selectedSsid
-                color: "white"; font.bold: true; font.pixelSize: 16
-                Layout.alignment: Qt.AlignHCenter
-            }
-
-            TextField {
-                id: passInput
-                Layout.fillWidth: true
-                placeholderText: "Password"
-                echoMode: TextInput.Password
-                color: "white"
-                background: Rectangle { color: "#2d2d2d"; radius: 6 }
-                inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase | Qt.ImhSensitiveData | Qt.ImhHiddenText
-                onAccepted: connectBtn.clicked()
-                onActiveFocusChanged: {
-                    if (activeFocus) {
-                        customKeyboard.target = passInput // 绑定目标
-                        customKeyboard.visible = true     // 显示键盘
-                    }
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true; spacing: 10
-                Button {
-                    text: "Cancel"
-                    Layout.fillWidth: true
-                    background: Rectangle { color: "#333"; radius: 6 }
-                    contentItem: Text { text: parent.text; color: "white"; horizontalAlignment: Text.AlignHCenter }
-                    onClicked: passPopup.close()
-                }
-                Button {
-                    id: connectBtn
-                    text: "Connect"
-                    Layout.fillWidth: true
-                    background: Rectangle { color: "#26A8FF"; radius: 6 }
-                    contentItem: Text { text: parent.text; color: "#121212"; font.bold: true; horizontalAlignment: Text.AlignHCenter }
-                    onClicked: {
-                        backend.connectToWifi(selectedSsid, passInput.text)
-                        passPopup.close()
-                        passInput.text = ""
-                    }
-                }
-            }
-        }
-        onOpened: passInput.forceActiveFocus()
-        
-        // 弹窗关闭时收起键盘
-        onClosed: {
-            customKeyboard.visible = false
-            passInput.focus = false
-        }
-    }
-
     // --- 主界面 ---
     ColumnLayout {
         anchors.fill: parent
@@ -281,13 +203,10 @@ Page {
                     }
 
                     onClicked: {
-                        if (modelData.connected) return;
-                        selectedSsid = modelData.ssid
-                        if (modelData.secured) {
-                            passPopup.open()
-                        } else {
-                            backend.connectToWifi(selectedSsid, "")
-                        }
+                        stackView.push("qrc:/MyDesktop/Backend/qml/WifiConnectPage.qml", {
+                            "backend": backend,
+                            "wifiData": modelData
+                        })
                     }
                 }
                 
@@ -304,23 +223,5 @@ Page {
 
     Component.onCompleted: {
         if (backend.wifiEnabled) backend.scanWifiNetworks()
-    }
-
-    CustomKeyboard {
-        id: customKeyboard
-        z: 999990 // 确保在最上层
-        width: parent.width // 撑满屏幕宽度
-        visible: false // 默认隐藏
-        
-        // 在 Wifi 页面，我们只需要普通模式
-        terminalMode: false 
-        
-        // 监听回车键 (Done/Enter)
-        onEnterClicked: {
-            // 如果是在密码框里按了回车，相当于点了连接
-            if (passPopup.opened) {
-                 passPopup.confirmConnect() // 假设你在 Popup 里封装了这个函数
-            }
-        }
     }
 }

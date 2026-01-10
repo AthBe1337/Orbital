@@ -666,14 +666,7 @@ Window {
                             Layout.fillWidth: true
                             Layout.alignment: Qt.AlignVCenter
                         }
-                        
-                        // 右箭头
-                        Text {
-                            text: "›"
-                            color: "#444"
-                            font.pixelSize: 20
-                            visible: model.action === "settings"
-                        }
+
                     }
 
                     onClicked: {

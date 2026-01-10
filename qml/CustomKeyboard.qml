@@ -4,8 +4,6 @@ import QtQuick.Layouts
 
 Rectangle {
     id: keyboard
-    parent: Overlay.overlay
-    z: 99999
     width: parent ? parent.width : 720
     height: terminalMode ? 320 : 270 // 终端模式稍高
     color: "#1C1E26" // 深空灰背景
@@ -15,7 +13,7 @@ Rectangle {
     y: visible ? parent.height - height : parent.height
 
     // --- 公共接口 ---
-    property TextField target: null // 当前控制的输入框
+    property var target: null // 当前控制的输入框
     property bool terminalMode: false // 切换 1:普通 / 2:终端 模式
     property bool showPreview: false // 是否显示按键气泡预览
 
@@ -150,20 +148,15 @@ Rectangle {
                 text: "←"
                 Layout.fillWidth: true; Layout.preferredWidth: 1.5
                 Layout.fillHeight: true
+                repeat: true 
+
                 onClicked: {
                     if (target && target.text.length > 0) {
                         var p = target.cursorPosition
                         if (p > 0) {
-                            var t = target.text
-                            target.text = t.slice(0, p - 1) + t.slice(p)
-                            target.cursorPosition = p - 1
+                            target.remove(p - 1, p)
                         }
                     }
-                }
-                // 长按连续删除
-                Timer {
-                    id: backTimer; interval: 100; repeat: true; running: parent.pressed
-                    onTriggered: parent.onClicked()
                 }
             }
         }
@@ -229,60 +222,83 @@ Rectangle {
 
     // --- 辅助组件：按键按钮 ---
     component KeyButton : Rectangle {
+        id: keyBtnRoot
+        
         property string text: ""
         property string iconSource: ""
         property color textColor: "white"
         property bool highlighted: false
+        property bool repeat: false 
+        
         signal clicked()
-        property bool pressed: ma.pressed
-
-        color: highlighted ? "#444" : (ma.pressed ? "#333" : "#2D2D2D")
+        
+        // 视觉反馈：直接绑定 TapHandler 的 pressed 状态
+        // TapHandler 的状态管理由 C++ 底层处理，极难卡死
+        color: highlighted ? "#444" : (inputHandler.pressed ? "#666" : "#2D2D2D")
         radius: 6
 
         // 文本
         Text {
             anchors.centerIn: parent
-            text: parent.text
-            color: parent.textColor
-            font.pixelSize: 18
-            visible: parent.iconSource === ""
+            text: parent.text; color: parent.textColor
+            font.pixelSize: 18; visible: parent.iconSource === ""
         }
-
-        // 图标 (如果有)
         IconImage {
             anchors.centerIn: parent
-            source: parent.iconSource
-            sourceSize: Qt.size(24, 24)
-            color: parent.textColor
-            visible: parent.iconSource !== ""
+            source: parent.iconSource; sourceSize: Qt.size(24, 24)
+            color: parent.textColor; visible: parent.iconSource !== ""
         }
 
-        MouseArea {
-            id: ma
-            anchors.fill: parent
+        // 【核心修改】使用 TapHandler 代替 MouseArea
+        TapHandler {
+            id: inputHandler
             
-            // 【关键修复 1】防止事件冒泡，同时也防止父级 MouseArea (背景那个) 抢夺
-            preventStealing: true 
-            
-            // 【关键修复 2】按下时不获取焦点
-            // 注意：TextField 在失去焦点时可能会清除选中状态，所以我们要小心
-            onPressed: {
-                // 如果 target 存在，强制保持它的焦点状态
-                if (target) {
-                    target.forceActiveFocus()
-                }
-            }
+            // 允许在按键范围内轻微滑动，只要松开时还在范围内就算点击
+            // 这对触摸屏非常友好，容错率高
+            gesturePolicy: TapHandler.ReleaseWithinBounds
 
-            onClicked: {
-                // 执行按键逻辑
-                parent.clicked()
-                
-                // 【关键修复 3】再次确保焦点在输入框上
-                // 这样光标会一直闪烁，体验才像原生键盘
-                if (target) {
-                    target.forceActiveFocus()
+            // 监听按下状态变化
+            onPressedChanged: {
+                if (pressed) {
+                    // 1. 按下瞬间：立即触发
+                    triggerKey()
+                    
+                    // 2. 如果是连发键(如删除)，启动定时器
+                    if (keyBtnRoot.repeat) {
+                        repeatTimer.restart()
+                    }
+                } else {
+                    // 3. 抬起瞬间：停止连发
+                    repeatTimer.stop()
                 }
             }
+        }
+
+        // 【连发定时器】(逻辑不变)
+        Timer {
+            id: repeatTimer
+            interval: 120 
+            repeat: true
+            onTriggered: triggerKey()
+        }
+
+        // 【焦点归还定时器】(逻辑不变)
+        // 依然需要这个异步逻辑来防止焦点丢失
+        Timer {
+            id: focusRestorer
+            interval: 1
+            repeat: false
+            onTriggered: {
+                if (keyboard.target) {
+                    keyboard.target.forceActiveFocus()
+                }
+            }
+        }
+
+        // 【统一触发函数】
+        function triggerKey() {
+            keyBtnRoot.clicked()
+            focusRestorer.restart()
         }
     }
 

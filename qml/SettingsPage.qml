@@ -166,7 +166,6 @@ Rectangle {
                             text: sysMon.wifiEnabled ? (sysMon.wifiList.length > 0 && sysMon.wifiList[0].connected ? sysMon.wifiList[0].ssid : "Not Connected") : "Off"
                             color: "#888"; font.pixelSize: 12
                         }
-                        Text { text: "›"; color: "#666"; font.pixelSize: 20 }
                     }
                     
                     TapHandler {
