@@ -91,7 +91,7 @@ Rectangle {
                             // 1. 亮度图标
                             IconImage {
                                 source: "qrc:/MyDesktop/Backend/assets/brightness.svg"
-                                sourceSize: Qt.size(22, 22)
+                                sourceSize: Qt.size(24, 24)
                                 color: "white"
                             }
 
@@ -161,7 +161,7 @@ Rectangle {
                         }
                         Text { 
                             // 显示当前连接的 SSID
-                            text: sysMon.wifiList.length > 0 && sysMon.wifiList[0].connected ? sysMon.wifiList[0].ssid : "Not Connected"
+                            text: sysMon.wifiEnabled ? (sysMon.wifiList.length > 0 && sysMon.wifiList[0].connected ? sysMon.wifiList[0].ssid : "Not Connected") : "Off"
                             color: "#888"; font.pixelSize: 12
                         }
                         Text { text: "›"; color: "#666"; font.pixelSize: 20 }

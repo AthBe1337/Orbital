@@ -19,6 +19,7 @@
 #include <linux/input.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <iostream>
 
 class SystemMonitor : public QObject
 {
@@ -73,6 +74,7 @@ public:
         initPowerKeyMonitor();
 
         m_wifiTimer = new QTimer(this);
+        getWifiEnabled(); // 立即更新状态
         // 设置间隔 5000ms (5秒)
         m_wifiTimer->setInterval(5000); 
         connect(m_wifiTimer, &QTimer::timeout, this, &SystemMonitor::scanWifiNetworks);
@@ -664,6 +666,14 @@ private:
         
         m_wifiList = newList;
         emit wifiListChanged();
+    }
+
+    Q_INVOKABLE void getWifiEnabled() {
+        QProcess proc;
+        proc.start("nmcli", QStringList() << "radio" << "wifi");
+        proc.waitForFinished();
+        QString output = proc.readAllStandardOutput().trimmed();
+        m_wifiEnabled = (output == "enabled");
     }
 
     QTimer m_timer;
