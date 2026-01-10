@@ -78,48 +78,100 @@ Rectangle {
 
                 // 1. 亮度控制
                 Rectangle {
-                    Layout.fillWidth: true
-                    Layout.leftMargin: 20
-                    Layout.rightMargin: 20
-                    
-                    height: 100
-                    color: "#1e1e1e"
-                    radius: 12
+                    Layout.fillWidth: true; Layout.leftMargin: 20; Layout.rightMargin: 20
+                    height: 100; color: "#1e1e1e"; radius: 12
                     
                     ColumnLayout {
                         anchors.fill: parent; anchors.margins: 15; spacing: 10
+                        
+                        // 标题行：图标 + 文字 + 数值
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "Brightness"; color: "white"; font.bold: true; font.pixelSize: 16 }
-                            Item { Layout.fillWidth: true }
-                            Text { text: brightnessSlider.value.toFixed(0) + "%"; color: "#aaa" }
+                            spacing: 10 // 图标和文字的间距
+
+                            // 1. 亮度图标
+                            IconImage {
+                                source: "qrc:/MyDesktop/Backend/assets/brightness.svg"
+                                sourceSize: Qt.size(22, 22)
+                                color: "white"
+                            }
+
+                            // 2. 标题文字
+                            Text { 
+                                text: "Brightness"; 
+                                color: "white"; 
+                                font.bold: true; 
+                                font.pixelSize: 16 
+                            }
+
+                            Item { Layout.fillWidth: true } // 弹簧
+
+                            // 3. 数值显示
+                            Text { 
+                                text: brightnessSlider.value.toFixed(0) + "%"; 
+                                color: "#aaa" 
+                            }
                         }
+
+                        // 滑动条 (保持不变)
                         Slider {
                             id: brightnessSlider
-                            Layout.fillWidth: true
-                            from: 0; to: 100; stepSize: 1
-                            
-                            // 使用传入的 sysMon 对象
+                            Layout.fillWidth: true; from: 0; to: 100; stepSize: 1
                             value: root.sysMon ? root.sysMon.brightness : 50
-                            
-                            onMoved: {
-                                if (root.sysMon) {
-                                    root.sysMon.brightness = value
-                                }
-                            }
+                            onMoved: if (root.sysMon) root.sysMon.brightness = value
                             
                             background: Rectangle {
-                                x: brightnessSlider.leftPadding; y: brightnessSlider.topPadding + brightnessSlider.availableHeight / 2 - height / 2
-                                implicitWidth: 200; implicitHeight: 4; width: brightnessSlider.availableWidth; height: implicitHeight
+                                x: brightnessSlider.leftPadding
+                                y: brightnessSlider.topPadding + brightnessSlider.availableHeight / 2 - height / 2
+                                implicitWidth: 200; implicitHeight: 4
+                                width: brightnessSlider.availableWidth; height: implicitHeight
                                 radius: 2; color: "#333"
-                                Rectangle { width: brightnessSlider.visualPosition * parent.width; height: parent.height; color: "#00E676"; radius: 2 }
+                                Rectangle {
+                                    width: brightnessSlider.visualPosition * parent.width
+                                    height: parent.height
+                                    color: "#00E676"
+                                    radius: 2
+                                }
                             }
                             handle: Rectangle {
                                 x: brightnessSlider.leftPadding + brightnessSlider.visualPosition * (brightnessSlider.availableWidth - width)
                                 y: brightnessSlider.topPadding + brightnessSlider.availableHeight / 2 - height / 2
-                                implicitWidth: 24; implicitHeight: 24; radius: 12 // 把滑块手柄也稍微调大一点点好按
-                                color: brightnessSlider.pressed ? "#f0f0f0" : "#ffffff"; border.color: "#00E676"
+                                implicitWidth: 24; implicitHeight: 24
+                                radius: 12
+                                color: brightnessSlider.pressed ? "#f0f0f0" : "#ffffff"
+                                border.color: "#00E676"
                             }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true; Layout.leftMargin: 20; Layout.rightMargin: 20
+                    height: 60; color: "#1e1e1e"; radius: 12
+                    
+                    RowLayout {
+                        anchors.fill: parent; anchors.margins: 15
+                        IconImage { 
+                            source: "qrc:/MyDesktop/Backend/assets/wifi.svg"
+                            sourceSize: Qt.size(24, 24); color: "white" 
+                        }
+                        Text { 
+                            text: "WLAN"
+                            color: "white"; font.pixelSize: 16; font.bold: true
+                            Layout.fillWidth: true; Layout.leftMargin: 10
+                        }
+                        Text { 
+                            // 显示当前连接的 SSID
+                            text: sysMon.wifiList.length > 0 && sysMon.wifiList[0].connected ? sysMon.wifiList[0].ssid : "Not Connected"
+                            color: "#888"; font.pixelSize: 12
+                        }
+                        Text { text: "›"; color: "#666"; font.pixelSize: 20 }
+                    }
+                    
+                    TapHandler {
+                        onTapped: {
+                            // 跳转到 WiFi 页面
+                            stackView.push("qrc:/MyDesktop/Backend/qml/WifiPage.qml", { "backend": sysMon })
                         }
                     }
                 }

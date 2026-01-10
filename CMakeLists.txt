@@ -52,12 +52,23 @@ qt_add_qml_module(appOrbital
         qml/CircleProgress.qml
         qml/LineChart.qml
         qml/SettingsPage.qml
+        qml/WifiPage.qml
     RESOURCES
         assets/logo.svg
         assets/power.svg
         assets/restart.svg
         assets/refresh.svg
         assets/settings.svg
+        assets/lock.svg
+        assets/check.svg
+        assets/wifi.svg
+        assets/brightness.svg
+        assets/wifi-off.svg
+        assets/wifi_4.svg
+        assets/wifi_3.svg
+        assets/wifi_2.svg
+        assets/wifi_1.svg
+        assets/wifi_0.svg
 )
 
 # 链接库
