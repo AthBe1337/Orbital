@@ -69,6 +69,10 @@ qt_add_qml_module(appOrbital
         assets/wifi_2.svg
         assets/wifi_1.svg
         assets/wifi_0.svg
+        assets/eye.svg
+        assets/eye-off.svg
+        assets/info.svg
+        assets/delete.svg
 )
 
 # 链接库
