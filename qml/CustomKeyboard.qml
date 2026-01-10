@@ -23,6 +23,7 @@ Rectangle {
     // --- 内部状态 ---
     property bool isUpper: false
     property bool isSym: false // 符号页
+    property bool isSym2: false
     property bool isCtrl: false // Terminal Ctrl状态
     property bool isAlt: false  // Terminal Alt状态
 
@@ -36,14 +37,30 @@ Rectangle {
         onPressed: (mouse)=> mouse.accepted = true 
     }
 
-    // --- 键盘布局数据 ---
+    // =========================================================
+    // 键盘布局数据定义
+    // =========================================================
+    
+    // --- 字母模式 ---
     readonly property var row1: ["q","w","e","r","t","y","u","i","o","p"]
     readonly property var row2: ["a","s","d","f","g","h","j","k","l"]
     readonly property var row3: ["z","x","c","v","b","n","m"]
-    readonly property var sym1: ["1","2","3","4","5","6","7","8","9","0"]
-    readonly property var sym2: ["!","@","#","$","%","^","&","*","(",")"]
-    readonly property var sym3: ["~","-","+","=","_","[","]","{","}","\\"]
-    readonly property var sym4: [":",";","\"","'","<",">",",",".","/","?"]
+
+    // --- 符号模式 Page 1 (常用数字与标点) ---
+    // 行1: 数字
+    readonly property var sym1_row1: ["1","2","3","4","5","6","7","8","9","0"]
+    // 行2: 常用符号
+    readonly property var sym1_row2: ["-","/",":",";","(",")","$","&","@","\""]
+    // 行3: 更多标点 (配合 Shift 位置)
+    readonly property var sym1_row3: [".",",","?","!","'"]
+
+    // --- 符号模式 Page 2 (更多符号 #+=) ---
+    // 行1: 括号与数学
+    readonly property var sym2_row1: ["[","]","{","}","#","%","^","*","+","="]
+    // 行2: 特殊符号
+    readonly property var sym2_row2: ["_","\\","|","~","<",">","€","£","¥","•"]
+    // 行3: 其它
+    readonly property var sym2_row3: [".",",","?","!","'"] // 保持常用标点方便输入
 
     // 终端专用行
     readonly property var termRow: ["Esc", "Tab", "Ctrl", "Alt", "←", "↑", "↓", "→"]
@@ -91,129 +108,175 @@ Rectangle {
         // ============================
         // 1. 第一行 (数字/符号 或 QWERTY)
         // ============================
-        RowLayout {
-            Layout.fillWidth: true; Layout.preferredWidth: 1
+// ============================
+        // 1. 第一行 (Row)
+        // ============================
+        Row {
+            Layout.fillWidth: true
+            Layout.fillHeight: true // 允许拉伸
+            Layout.preferredHeight: 1 // 权重 1
             spacing: 4
+            
+            // 计算: (总宽 - 总间隙) / 数量
+            property real keyWidth: (width - (spacing * (repeater1.count - 1))) / repeater1.count
+
             Repeater {
-                model: isSym ? sym1 : row1
-                delegate: CharKey { text: getKeyLabel(modelData) }
+                id: repeater1
+                model: isSym ? (isSym2 ? sym2_row1 : sym1_row1) : row1
+                delegate: KeyButton { 
+                    text: getKeyLabel(modelData) 
+                    width: parent.keyWidth; height: parent.height
+                    onClicked: insertText(text)
+                }
             }
         }
 
         // ============================
-        // 2. 第二行
+        // 2. 第二行 (Row + Padding缩进)
         // ============================
-        RowLayout {
-            Layout.fillWidth: true; Layout.preferredWidth: 1
-            Layout.leftMargin: width * 0.05; Layout.rightMargin: width * 0.05 // 缩进模拟真实键盘
+        Row {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.preferredHeight: 1 // 权重 1
             spacing: 4
+            
+            // 使用 Padding 实现缩进，比 Item 占位更稳
+            leftPadding: width * 0.03
+            rightPadding: width * 0.03
+            property real availableW: width - leftPadding - rightPadding
+            property real keyWidth: (availableW - (spacing * (repeater2.count - 1))) / repeater2.count
+
             Repeater {
-                model: isSym ? sym3 : row2
-                delegate: CharKey { text: getKeyLabel(modelData) }
+                id: repeater2
+                model: isSym ? (isSym2 ? sym2_row2 : sym1_row2) : row2
+                delegate: KeyButton { 
+                    text: getKeyLabel(modelData) 
+                    width: parent.keyWidth; height: parent.height
+                    onClicked: insertText(text)
+                }
             }
         }
 
         // ============================
-        // 3. 第三行 (Shift + 字母 + Backspace)
+        // 3. 第三行 (Row + 混合计算)
         // ============================
-        RowLayout {
-            Layout.fillWidth: true; Layout.preferredWidth: 1
+        Row {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.preferredHeight: 1 // 权重 1
             spacing: 4
 
-            // Shift / Caps
+            // 计算逻辑：
+            // Shift(1.5) + 中间N个(1.0) + Backspace(1.5)
+            // 总权重 = 1.5 + N + 1.5 = N + 3
+            // 总间隙 = (N + 2个按键) - 1 = N + 1
+            
+            property int middleCount: repeater3.count
+            property real totalWeight: 1.5 + middleCount + 1.5
+            property real totalSpacing: spacing * (middleCount + 1)
+            
+            // 基础单位宽度 (权重为1的宽度)
+            property real unitWidth: (width - totalSpacing) / totalWeight
+
+            // 1. Shift 键 (宽 1.5)
             KeyButton {
-                iconSource: isUpper ? "qrc:/MyDesktop/Backend/assets/shift-filled.svg" : "qrc:/MyDesktop/Backend/assets/shift.svg"
-                text: isSym ? "#+=" : "" // 符号页切换第二页符号
-                Layout.fillWidth: true; Layout.preferredWidth: 1.5
-                Layout.fillHeight: true
-                highlighted: isUpper
+                width: parent.unitWidth * 1.5
+                height: parent.height
+                
+                iconSource: !isSym ? (isUpper ? "qrc:/MyDesktop/Backend/assets/shift-filled.svg" : "qrc:/MyDesktop/Backend/assets/shift.svg") : ""
+                text: isSym ? (isSym2 ? "123" : "#+=") : "" 
+                highlighted: !isSym && isUpper
+                
                 onClicked: {
-                    if (isSym) {
-                        // 符号页暂未实现第二页，可留空或切换 sym2
-                    } else {
-                        isUpper = !isUpper
-                    }
+                    if (isSym) isSym2 = !isSym2
+                    else isUpper = !isUpper
                 }
             }
 
-            // 字母区
+            // 2. 中间字母 (宽 1.0)
             Repeater {
-                model: isSym ? sym4 : row3
-                delegate: CharKey { text: getKeyLabel(modelData) }
+                id: repeater3
+                model: isSym ? (isSym2 ? sym2_row3 : sym1_row3) : row3
+                delegate: KeyButton { 
+                    text: getKeyLabel(modelData) 
+                    width: parent.unitWidth // * 1.0
+                    height: parent.height
+                    onClicked: insertText(text)
+                }
             }
 
-            // Backspace
+            // 3. Backspace 键 (宽 1.5)
             KeyButton {
+                width: parent.unitWidth * 1.5
+                height: parent.height
                 iconSource: "qrc:/MyDesktop/Backend/assets/backspace.svg"
                 text: "←"
-                Layout.fillWidth: true; Layout.preferredWidth: 1.5
-                Layout.fillHeight: true
                 repeat: true 
-
                 onClicked: {
                     if (target && target.text.length > 0) {
                         var p = target.cursorPosition
-                        if (p > 0) {
-                            target.remove(p - 1, p)
-                        }
+                        if (p > 0) target.remove(p - 1, p)
                     }
                 }
             }
         }
 
         // ============================
-        // 4. 第四行 (功能区 + 空格)
+        // 4. 第四行 (Row + 混合计算)
         // ============================
-        RowLayout {
-            Layout.fillWidth: true; Layout.preferredWidth: 1
+        Row {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.preferredHeight: 1 // 权重 1
             spacing: 4
 
-            // 切换符号/字母
+            // 布局：Switch(1.5) - Comma(1) - Space(4) - Dot(1) - Enter(1.5)
+            // 总权重 = 1.5 + 1 + 4 + 1 + 1.5 = 9.0
+            // 元素数量 = 5，间隙数量 = 4
+            
+            property real totalWeight: 9.0
+            property real unitWidth: (width - (spacing * 4)) / totalWeight
+
+            // 1. Switch
             KeyButton {
+                width: parent.unitWidth * 1.5; height: parent.height
                 text: isSym ? "ABC" : "?123"
-                Layout.fillWidth: true; Layout.preferredWidth: 1.5
-                Layout.fillHeight: true
-                onClicked: { isSym = !isSym }
+                onClicked: { isSym = !isSym; isSym2 = false }
             }
 
-            // 逗号 (快捷键)
+            // 2. Comma
             KeyButton {
+                width: parent.unitWidth * 1.0; height: parent.height
                 text: ","
-                Layout.fillWidth: true; Layout.preferredWidth: 1
-                Layout.fillHeight: true
                 onClicked: insertText(",")
             }
 
-            // Space
+            // 3. Space
             KeyButton {
+                width: parent.unitWidth * 4.0; height: parent.height
                 text: "Space"
-                Layout.fillWidth: true; Layout.preferredWidth: 4
-                Layout.fillHeight: true
                 onClicked: insertText(" ")
             }
 
-            // 句号 (快捷键)
+            // 4. Dot
             KeyButton {
+                width: parent.unitWidth * 1.0; height: parent.height
                 text: "."
-                Layout.fillWidth: true; Layout.preferredWidth: 1
-                Layout.fillHeight: true
                 onClicked: insertText(".")
             }
 
-            // Hide / Enter
+            // 5. Enter
             KeyButton {
+                width: parent.unitWidth * 1.5; height: parent.height
                 text: terminalMode ? "Enter" : "Done"
-                color: "#2979FF" // 蓝色高亮
-                textColor: "white"
-                Layout.fillWidth: true; Layout.preferredWidth: 1.5
-                Layout.fillHeight: true
+                color: "#2979FF"; textColor: "white"
                 onClicked: {
-                    enterClicked() // 发出信号
+                    enterClicked()
                     if (!terminalMode) {
                         keyboard.visible = false
-                        target.focus = false
+                        if (target) target.focus = false
                     } else {
-                        insertText("\n") // 终端模式换行
+                        insertText("\n")
                     }
                 }
             }
@@ -230,6 +293,9 @@ Rectangle {
         property bool highlighted: false
         property bool repeat: false 
         
+        implicitWidth: 40 
+        implicitHeight: 40
+
         signal clicked()
         
         // 视觉反馈：直接绑定 TapHandler 的 pressed 状态
@@ -305,6 +371,7 @@ Rectangle {
     // --- 辅助组件：字符按键 (封装大小写逻辑) ---
     component CharKey : KeyButton {
         Layout.fillWidth: true; Layout.preferredWidth: 1
+        Layout.minimumWidth: 0
         Layout.fillHeight: true
         onClicked: insertText(text)
     }
