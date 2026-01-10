@@ -350,6 +350,127 @@ Window {
         }
     }
 
+    Popup {
+        id: netPopup
+        parent: Overlay.overlay
+        x: Math.round((parent.width - width) / 2)
+        y: Math.round((parent.height - height) / 2)
+        width: parent.width * 0.9
+        height: parent.height * 0.7 // 网络信息可能比较长，给高一点
+        modal: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        
+        Overlay.modal: Rectangle { color: "#aa000000" }
+        enter: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 200 } }
+        exit: Transition { NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 200 } }
+
+        background: Rectangle {
+            color: "#1e1e1e"
+            radius: 15
+            border.color: "#333333"
+            border.width: 1
+        }
+
+        contentItem: ColumnLayout {
+            spacing: 15
+            Item { height: 10; Layout.fillWidth: true }
+
+            Text { 
+                text: "Network Interfaces"
+                color: "white"
+                font.pixelSize: 20
+                font.bold: true
+                Layout.alignment: Qt.AlignHCenter 
+            }
+
+            ListView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.leftMargin: 20; Layout.rightMargin: 20
+                clip: true
+                spacing: 15
+                model: backend.netInterfaces
+
+                delegate: Rectangle {
+                    width: ListView.view.width
+                    // 自适应高度：根据 IP 数量撑开
+                    height: contentCol.implicitHeight + 30
+                    color: "#252525"
+                    radius: 8
+                    
+                    ColumnLayout {
+                        id: contentCol
+                        anchors.fill: parent
+                        anchors.margins: 15
+                        spacing: 8
+
+                        // 1. 接口名 + 状态
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { 
+                                text: modelData.name // wlan0
+                                color: "#00E5FF" // 青色高亮
+                                font.bold: true
+                                font.pixelSize: 16
+                            }
+                            Item { Layout.fillWidth: true }
+                            Rectangle {
+                                width: 40; height: 18; radius: 4
+                                color: modelData.state === "UP" ? "#2E7D32" : "#C62828"
+                                Text { 
+                                    text: modelData.state
+                                    anchors.centerIn: parent
+                                    color: "white"
+                                    font.pixelSize: 10
+                                    font.bold: true
+                                }
+                            }
+                        }
+
+                        // 2. MAC 地址
+                        Text {
+                            visible: modelData.mac !== ""
+                            text: "MAC: " + modelData.mac
+                            color: "#888"
+                            font.family: "Monospace"
+                            font.pixelSize: 12
+                        }
+                        
+                        // 分割线
+                        Rectangle { Layout.fillWidth: true; height: 1; color: "#333" }
+
+                        // 3. IP 地址列表
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 4
+                            Repeater {
+                                model: modelData.ips // 这是一个 StringList
+                                delegate: Text {
+                                    text: modelData
+                                    color: "#ddd"
+                                    font.family: "Monospace"
+                                    font.pixelSize: 13
+                                    // 自动换行，防止 IPv6 太长
+                                    wrapMode: Text.WrapAnywhere 
+                                    Layout.fillWidth: true
+                                }
+                            }
+                            // 如果没有 IP
+                            Text {
+                                visible: modelData.ips.length === 0
+                                text: "No IP Address"
+                                color: "#555"
+                                font.italic: true
+                                font.pixelSize: 12
+                            }
+                        }
+                    }
+                }
+            }
+            Item { height: 10; Layout.fillWidth: true }
+        }
+    }
+
     // ================= 页面导航 (StackView) =================
     StackView {
         id: stackView
@@ -679,7 +800,7 @@ Window {
                 Rectangle {
                     Layout.fillWidth: true
                     height: 80
-                    color: "#1e1e1e"
+                    color: netTap.pressed ? "#2a2a2a" : "#1e1e1e"
                     radius: 12
                     
                     RowLayout {
@@ -730,6 +851,11 @@ Window {
                             }
                             Text { text: "Upload"; color: "#666"; font.pixelSize: 10; Layout.alignment: Qt.AlignRight }
                         }
+                    }
+                    TapHandler {
+                        id: netTap
+                        enabled: !netPopup.visible
+                        onTapped: netPopup.open()
                     }
                 }
 

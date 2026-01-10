@@ -11,6 +11,7 @@
 #include <QThread>
 #include <QDebug>
 #include <QVariantList>
+#include <QNetworkInterface>
 
 class SystemMonitor : public QObject
 {
@@ -34,6 +35,7 @@ class SystemMonitor : public QObject
     Q_PROPERTY(QString netRxSpeed READ netRxSpeed NOTIFY statsChanged)
     Q_PROPERTY(QString netTxSpeed READ netTxSpeed NOTIFY statsChanged)
     Q_PROPERTY(int brightness READ brightness WRITE setBrightness NOTIFY brightnessChanged)
+    Q_PROPERTY(QVariantList netInterfaces READ netInterfaces NOTIFY statsChanged)
 
 public:
     explicit SystemMonitor(QObject *parent = nullptr) : QObject(parent) {
@@ -76,6 +78,7 @@ public:
     QString netRxSpeed() const { return m_netRxSpeed; }
     QString netTxSpeed() const { return m_netTxSpeed; }
     int brightness() const { return m_brightnessPercent; }
+    QVariantList netInterfaces() const { return m_netInterfaces; }
 
     void setBrightness(int percent) {
         if (percent < 0) percent = 0;
@@ -109,6 +112,7 @@ private slots:
         updateHistory(m_memHistory, m_memPercent * 100.0);
         readNetworkInfo();
         // readBrightness();
+        readNetworkInterfaceDetails();
         emit statsChanged();
     }
 
@@ -362,6 +366,35 @@ private:
         return "";
     }
 
+    void readNetworkInterfaceDetails() {
+        QVariantList list;
+        const auto interfaces = QNetworkInterface::allInterfaces();
+
+        for (const QNetworkInterface &interface : interfaces) {
+            // 过滤掉完全无效的接口，但保留 lo (loopback) 因为 ip a 通常会显示它
+            if (!interface.isValid()) continue;
+
+            QVariantMap map;
+            map["name"] = interface.name(); // e.g., wlan0
+            map["mac"] = interface.hardwareAddress(); // e.g., AA:BB:CC...
+            
+            // 状态判断
+            bool isUp = interface.flags().testFlag(QNetworkInterface::IsUp);
+            bool isRunning = interface.flags().testFlag(QNetworkInterface::IsRunning);
+            map["state"] = (isUp && isRunning) ? "UP" : "DOWN";
+            
+            // 获取所有 IP 地址 (IPv4 & IPv6)
+            QStringList ipList;
+            for (const QNetworkAddressEntry &entry : interface.addressEntries()) {
+                ipList.append(entry.ip().toString());
+            }
+            map["ips"] = ipList;
+
+            list.append(map);
+        }
+        m_netInterfaces = list;
+    }
+
     void writeSysFile(const QString &path, const QString &value) {
         QFile file(path);
         if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -431,6 +464,7 @@ private:
     QVariantList m_netTxHistory;
     QString m_netRxSpeed = "0 B/s";
     QString m_netTxSpeed = "0 B/s";
+    QVariantList m_netInterfaces;
     QString m_backlightPath;
     int m_maxBrightness = 0;
     int m_brightnessPercent = 50; // 默认值
