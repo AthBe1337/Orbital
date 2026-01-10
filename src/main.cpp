@@ -6,6 +6,7 @@
 int main(int argc, char *argv[])
 {
     qputenv("QT_SCALE_FACTOR", "2.2");
+    qputenv("QT_IM_MODULE", QByteArray("qtvirtualkeyboard"));
     QGuiApplication app(argc, argv);
 
     // 注册 C++ 类型到 QML

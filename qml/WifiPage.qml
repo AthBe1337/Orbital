@@ -63,7 +63,7 @@ Page {
                     id: connectBtn
                     text: "Connect"
                     Layout.fillWidth: true
-                    background: Rectangle { color: "#00E676"; radius: 6 }
+                    background: Rectangle { color: "#26A8FF"; radius: 6 }
                     contentItem: Text { text: parent.text; color: "#121212"; font.bold: true; horizontalAlignment: Text.AlignHCenter }
                     onClicked: {
                         backend.connectToWifi(selectedSsid, passInput.text)
