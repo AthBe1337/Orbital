@@ -13,6 +13,7 @@
 #include <QVariantList>
 #include <QNetworkInterface>
 #include <QSocketNotifier>
+#include <QGuiApplication>
 
 #include <linux/input.h>
 #include <fcntl.h>
@@ -141,18 +142,30 @@ private slots:
     // 处理输入事件
     void onInputEvent() {
         struct input_event ev;
-        // 读取事件
         while (read(m_inputFd, &ev, sizeof(ev)) > 0) {
-            // 类型必须是按键 (EV_KEY)
             if (ev.type == EV_KEY) {
-                // 代码必须是电源键 (KEY_POWER = 116)
-                if (ev.code == KEY_POWER) {
-                    // value: 1=按下, 0=抬起, 2=长按
-                    // 我们只在按下时触发 (防止抬起时又触发一次)
-                    if (ev.value == 1) {
-                        qDebug() << "Power Key Pressed! Toggling Screen...";
-                        toggleScreen();
+                if (ev.code == KEY_POWER) { 
+                    
+                    if (ev.value == 1) { 
+                        // [按下]
+                        // 启动定时器，开始倒计时
+                        qDebug() << "Key Down: Timer Started";
+                        m_longPressTimer->start();
+                    } 
+                    else if (ev.value == 0) { 
+                        // [抬起]
+                        if (m_longPressTimer->isActive()) {
+                            // 定时器还在跑，说明还没到 1.5秒 -> 【短按】
+                            m_longPressTimer->stop();
+                            qDebug() << "Short Press Detected. Toggling Screen...";
+                            toggleScreen();
+                        } else {
+                            // 定时器已经停了（超时了），说明刚才已经触发过长按逻辑了
+                            // 这里直接忽略抬起动作
+                            qDebug() << "Release ignored (Long press already handled).";
+                        }
                     }
+                    // 完全忽略 ev.value == 2
                 }
             }
         }
@@ -168,6 +181,18 @@ private:
             qWarning() << "Failed to open input device:" << devPath << "Check permissions (sudo or udev)!";
             return;
         }
+
+        m_longPressTimer = new QTimer(this);
+        m_longPressTimer->setSingleShot(true);
+        // 设置长按触发时间 (1.5秒)
+        m_longPressTimer->setInterval(1500); 
+
+        // 定时器超时 = 长按触发
+        connect(m_longPressTimer, &QTimer::timeout, this, [this](){
+            qDebug() << "Manual Long Press Detected (1.5s)! Exiting...";
+            // 执行退出，外部脚本捕获 42 后重启
+            qApp->exit(42);
+        });
 
         // 使用 QSocketNotifier 监听，这样不会阻塞 UI 线程
         m_notifier = new QSocketNotifier(m_inputFd, QSocketNotifier::Read, this);
@@ -534,6 +559,8 @@ private:
     int m_inputFd = -1;
     QSocketNotifier *m_notifier = nullptr;
     bool m_isScreenOn = true;
+    bool m_longPressTriggered = false;
+    QTimer *m_longPressTimer = nullptr;
 
     const QString TOUCH_INHIBIT_PATH = "/sys/devices/platform/soc@0/ac0000.geniqup/a90000.i2c/i2c-12/12-0020/rmi4-00/input/input5/inhibited";
 };
