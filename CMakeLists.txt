@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(Op6T_Desktop VERSION 0.1 LANGUAGES CXX)
+project(Orbital VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -33,18 +33,18 @@ endif()
 message(STATUS "Current Git Hash: ${GIT_HASH}")
 
 # 添加可执行文件
-qt_add_executable(appOp6T_Desktop
+qt_add_executable(appOrbital
     src/main.cpp
     src/SystemMonitor.h
 )
 
-target_compile_definitions(appOp6T_Desktop
+target_compile_definitions(appOrbital
     PRIVATE
     GIT_COMMIT_HASH="${GIT_HASH}" 
 )
 
 # 注册 QML 模块
-qt_add_qml_module(appOp6T_Desktop
+qt_add_qml_module(appOrbital
     URI "MyDesktop.Backend"
     VERSION 1.0
     QML_FILES 
@@ -57,6 +57,6 @@ qt_add_qml_module(appOp6T_Desktop
 )
 
 # 链接库
-target_link_libraries(appOp6T_Desktop
+target_link_libraries(appOrbital
     PRIVATE Qt6::Quick Qt6::Core
 )
