@@ -198,7 +198,7 @@ Rectangle {
                         }
                     }
 
-                    tapHandler {
+                    TapHandler {
                         id: tapAbout
                         onTapped: {
                             // 显示关于信息
