@@ -51,6 +51,8 @@ qt_add_qml_module(appOp6T_Desktop
         qml/Main.qml
         qml/CircleProgress.qml
         qml/LineChart.qml
+    RESOURCES
+        assets/logo.svg
 )
 
 # 链接库

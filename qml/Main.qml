@@ -638,29 +638,45 @@ Window {
             // Item { height: 5 }
 
             ColumnLayout {
-                // 居中显示整个信息块，而不是占满整行宽度
                 Layout.alignment: Qt.AlignHCenter
                 Layout.preferredWidth: implicitWidth
-                spacing: 2
                 
-                // 应用名
-                Text {
-                    text: appName // 从 C++ 获取
-                    color: "#444444" // 深灰色，低调
-                    font.pixelSize: 14
-                    font.bold: true
-                    font.letterSpacing: 2 // 增加字间距，更有设计感
+                // 使用 RowLayout 让图标和文字并排
+                RowLayout {
                     Layout.alignment: Qt.AlignHCenter
-                }
-                
-                // Git Hash
-                Text {
-                    text: "Build: " + appBuildHash // 从 C++ 获取
-                    color: "#333333" // 更深的灰色
-                    font.family: "Monospace"
-                    font.pixelSize: 10
-                    Layout.alignment: Qt.AlignHCenter
-                    opacity: 0.6
+                    spacing: 12
+                    
+                    IconImage {
+                        source: "qrc:/MyDesktop/Backend/assets/logo.svg"
+                        
+                        color: "white" 
+                        
+                        sourceSize.width: 32
+                        sourceSize.height: 32
+                        
+                        opacity: 0.85
+                    }
+                    
+                    ColumnLayout {
+                        spacing: 0
+                        
+                        Text {
+                            text: appName
+                            color: "#eeeeee" 
+                            font.pixelSize: 15
+                            font.bold: true
+                            font.letterSpacing: 1.5
+                            Layout.alignment: Qt.AlignLeft 
+                        }
+                        
+                        Text {
+                            text: "Build: " + appBuildHash
+                            color: "#aaaaaa"
+                            font.family: "Monospace"
+                            font.pixelSize: 10
+                            Layout.alignment: Qt.AlignLeft
+                        }
+                    }
                 }
             }
 
