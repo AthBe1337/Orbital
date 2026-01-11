@@ -16,6 +16,8 @@
 #include <QGuiApplication>
 #include <QProcess>
 
+#include <algorithm>
+
 #include <linux/input.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -49,6 +51,8 @@ class SystemMonitor : public QObject
     Q_PROPERTY(QVariantList wifiList READ wifiList NOTIFY wifiListChanged)
     // WiFi 开关状态
     Q_PROPERTY(bool wifiEnabled READ wifiEnabled WRITE setWifiEnabled NOTIFY wifiEnabledChanged)
+    // 当前连接的 WiFi 详细信息 (IP, MAC 等)
+    Q_PROPERTY(QVariantMap currentWifiDetails READ currentWifiDetails NOTIFY currentWifiDetailsChanged)
 
 public:
     explicit SystemMonitor(QObject *parent = nullptr) : QObject(parent) {
@@ -74,6 +78,7 @@ public:
         initPowerKeyMonitor();
 
         m_wifiTimer = new QTimer(this);
+        fetchSavedWifiList();
         initWifiEnabled(); // 立即更新状态
         // 设置间隔 5000ms (5秒)
         m_wifiTimer->setInterval(5000); 
@@ -112,30 +117,52 @@ public:
     bool isScreenOn() const { return m_isScreenOn; }
     QVariantList wifiList() const { return m_wifiList; }
     bool wifiEnabled() const { return m_wifiEnabled; }
+    QVariantMap currentWifiDetails() const { return m_currentWifiDetails; }
 
     // 控制 WiFi 开关
     void setWifiEnabled(bool enable) {
         if (m_wifiEnabled == enable) return;
-        m_wifiEnabled = enable;
         
-        QProcess::startDetached("nmcli", QStringList() << "radio" << "wifi" << (enable ? "on" : "off"));
+        QProcess *proc = new QProcess(this);
+        QString state = enable ? "on" : "off";
         
-        if (enable) {
-            scanWifiNetworks(); // 立即扫一次
-            m_wifiTimer->start(); // 开启轮询
-        } else {
-            m_wifiTimer->stop(); // 关闭轮询
-            m_wifiList.clear();
-            emit wifiListChanged();
-        }
-        emit wifiEnabledChanged();
+        connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                [this, proc, enable](int exitCode, QProcess::ExitStatus) {
+            bool success = (exitCode == 0);
+            if (success) {
+                m_wifiEnabled = enable;
+                if (enable) {
+                    fetchSavedWifiList(); // 开启时更新一下已保存列表
+                    scanWifiNetworks();
+                    m_wifiTimer->start();
+                } else {
+                    m_wifiTimer->stop();
+                    m_wifiList.clear();
+                    m_currentWifiDetails.clear();
+                    emit wifiListChanged();
+                    emit currentWifiDetailsChanged();
+                }
+                emit wifiEnabledChanged();
+            }
+            
+            QString errorMsg = success ? "" : proc->readAllStandardError();
+            // 发送操作结果信号: 操作名, 成功否, 错误信息
+            emit wifiOperationResult("toggle", success, errorMsg);
+            
+            proc->deleteLater();
+        });
+
+        proc->start("nmcli", QStringList() << "radio" << "wifi" << state);
     }
 
-    // 供 QML 调用：连接 WiFi
+    // 连接 WiFi
     Q_INVOKABLE void connectToWifi(const QString &ssid, const QString &password) {
-        qDebug() << "Connecting to" << ssid;
+        if (!m_wifiEnabled) {
+            emit wifiOperationResult("connect", false, "WiFi is disabled");
+            return;
+        }
+
         QProcess *proc = new QProcess(this);
-        
         QStringList args;
         args << "dev" << "wifi" << "connect" << ssid;
         if (!password.isEmpty()) {
@@ -144,28 +171,84 @@ public:
         
         connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 [this, proc, ssid](int exitCode, QProcess::ExitStatus) {
-            if (exitCode == 0) {
-                qDebug() << "Connected to" << ssid;
-                // 连接成功后刷新列表（获取新的 connected 状态）
+            bool success = (exitCode == 0);
+            QString output = proc->readAllStandardOutput();
+            QString error = proc->readAllStandardError();
+            
+            if (success) {
+                // 连接成功，立即更新已保存列表(因为新连接的会被系统保存)
+                fetchSavedWifiList();
                 scanWifiNetworks(); 
-            } else {
-                qDebug() << "Failed to connect. Error:" << proc->readAllStandardError();
             }
+            
+            emit wifiOperationResult("connect", success, success ? output : error);
             proc->deleteLater();
         });
         
         proc->start("nmcli", args);
     }
 
-    // 供 QML 调用：扫描网络
+    // 断开连接
+    Q_INVOKABLE void disconnectFromWifi(const QString &ssid) {
+        QProcess *proc = new QProcess(this);
+        // 通常断开连接可以使用 connection down
+        connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                [this, proc](int exitCode, QProcess::ExitStatus) {
+            bool success = (exitCode == 0);
+            if (success) scanWifiNetworks(); // 刷新状态
+            emit wifiOperationResult("disconnect", success, proc->readAllStandardError());
+            proc->deleteLater();
+        });
+        
+        // 尝试关闭指定的连接 ID
+        proc->start("nmcli", QStringList() << "connection" << "down" << "id" << ssid);
+    }
+
+    // 忘记/删除网络
+    Q_INVOKABLE void forgetNetwork(const QString &ssid) {
+        QProcess *proc = new QProcess(this);
+        connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                [this, proc, ssid](int exitCode, QProcess::ExitStatus) {
+            bool success = (exitCode == 0);
+            if (success) {
+                // 更新内部已保存列表
+                m_savedSsids.removeAll(ssid); 
+                scanWifiNetworks(); // 刷新前端显示
+            }
+            emit wifiOperationResult("forget", success, proc->readAllStandardError());
+            proc->deleteLater();
+        });
+        
+        proc->start("nmcli", QStringList() << "connection" << "delete" << "id" << ssid);
+    }
+
+    // 设置自动连接
+    Q_INVOKABLE void setAutoConnect(const QString &ssid, bool autoConnect) {
+        QProcess *proc = new QProcess(this);
+        connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                [this, proc](int exitCode, QProcess::ExitStatus) {
+             // 这里通常不需要给用户反馈，默默执行即可，或者 debug log
+             if (exitCode != 0) qDebug() << "Failed to set auto-connect:" << proc->readAllStandardError();
+             proc->deleteLater();
+        });
+
+        QString val = autoConnect ? "yes" : "no";
+        proc->start("nmcli", QStringList() << "connection" << "modify" << "id" << ssid << "connection.autoconnect" << val);
+    }
+
+    // 扫描网络
     Q_INVOKABLE void scanWifiNetworks() {
         if (!m_wifiEnabled) return;
-
+        
+        // 每次扫描前，最好确保存储的列表是最新的（虽然不用太频繁，但为了一致性）
+        // 这里的 fetchSavedWifiList 为了不阻塞，可以不做全量调用，或者放在解析前
+        // 鉴于 nmcli connection show 很快，我们在 start 之前先同步调用一下，或者异步链式调用
+        // 为了简单起见，我们假设 saved list 变化不频繁，只在 init 和 connect/forget 成功时更新
+        
         QProcess *proc = new QProcess(this);
-        // 使用 -t (terse) 模式，-f 指定字段: SSID, 信号强度(Bars), 安全性, 是否当前连接(*)
-        // 命令: nmcli -t -f SSID,BARS,SECURITY,IN-USE dev wifi list
         QStringList args;
-        args << "-t" << "-f" << "SSID,BARS,SECURITY,IN-USE" << "dev" << "wifi" << "list";
+        // 字段: SSID, 数值信号强度, 安全性, 是否当前连接(*), 频道
+        args << "-t" << "-f" << "SSID,SIGNAL,SECURITY,IN-USE,CHAN" << "dev" << "wifi" << "list";
 
         connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 [this, proc](int exitCode, QProcess::ExitStatus) {
@@ -217,6 +300,9 @@ signals:
     void screenStateChanged();
     void wifiListChanged();
     void wifiEnabledChanged();
+    void currentWifiDetailsChanged();
+    // 操作结果信号：operation (connect/disconnect/forget/toggle), success, message
+    void wifiOperationResult(QString operation, bool success, QString message);
 
 private slots:
     void updateStats() {
@@ -227,8 +313,8 @@ private slots:
         updateHistory(m_cpuHistory, m_cpuTotal * 100.0);
         updateHistory(m_memHistory, m_memPercent * 100.0);
         readNetworkInfo();
-        // 实时亮度更新通常不需要 polling，除非系统自动亮度在变
         // readBrightness(); 
+        readNetworkInterfaceDetails();
         readNetworkInterfaceDetails();
         emit statsChanged();
     }
@@ -623,47 +709,87 @@ private:
 
     // 解析 nmcli 输出
     void parseWifiOutput(const QString &output) {
-        QVariantList newList;
+        QVariantList connectedList;
+        QVariantList savedList;
+        QVariantList otherList;
         QStringList lines = output.split('\n', Qt::SkipEmptyParts);
         QStringList seenSsids;
 
+        auto strengthValue = [](const QVariant &item) {
+            QVariantMap m = item.toMap();
+            bool ok = false;
+            int numeric = m.value("level").toInt(&ok);
+            return ok ? numeric : 0;
+        };
+
         for (const QString &line : lines) {
-            
-            int lastSep = line.lastIndexOf(':'); // IN-USE separator
-            if (lastSep == -1) continue;
-            QString inUseStr = line.mid(lastSep + 1);
-            
-            int secSep = line.lastIndexOf(':', lastSep - 1); // Security separator
+            int chanSep = line.lastIndexOf(':'); // CHAN separator
+            if (chanSep == -1) continue;
+            int inUseSep = line.lastIndexOf(':', chanSep - 1); // IN-USE separator
+            if (inUseSep == -1) continue;
+            QString inUseStr = line.mid(inUseSep + 1, chanSep - inUseSep - 1);
+
+            int secSep = line.lastIndexOf(':', inUseSep - 1); // Security separator
             if (secSep == -1) continue;
-            QString security = line.mid(secSep + 1, lastSep - secSep - 1);
-            
-            int barSep = line.lastIndexOf(':', secSep - 1); // Bars separator
-            if (barSep == -1) continue;
-            QString bars = line.mid(barSep + 1, secSep - barSep - 1);
-            
-            QString ssid = line.left(barSep);
-            
+            QString security = line.mid(secSep + 1, inUseSep - secSep - 1);
+
+            int sigSep = line.lastIndexOf(':', secSep - 1); // SIGNAL separator
+            if (sigSep == -1) continue;
+            QString signal = line.mid(sigSep + 1, secSep - sigSep - 1);
+
+            QString ssid = line.left(sigSep);
+
             // 简单去重 (nmcli 会显示同一 SSID 的多个频段)
             if (ssid.isEmpty() || seenSsids.contains(ssid)) continue;
             seenSsids.append(ssid);
 
             QVariantMap wifi;
             wifi["ssid"] = ssid;
-            wifi["level"] = bars; // nmcli 直接给出的图形条
+            bool sigOk = false;
+            int signalVal = signal.toInt(&sigOk);
+            wifi["level"] = sigOk ? signalVal : 0; // 使用 SIGNAL 数值
             wifi["secured"] = !security.isEmpty();
             wifi["connected"] = (inUseStr == "*");
 
             QString formattedSecurity = security.split(' ', Qt::SkipEmptyParts).join(" / ");
             wifi["securityType"] = formattedSecurity;
-            
-            // 把已连接的放在最前面
+
+            wifi["isSaved"] = m_savedSsids.contains(ssid);
+            wifi["autoConnect"] = m_savedAutoConnect.contains(ssid);
+
             if (wifi["connected"].toBool()) {
-                newList.prepend(wifi);
+                m_currentWifiDetails = wifi;
+                for (const QVariant &v : m_netInterfaces) {
+                    QVariantMap iface = v.toMap();
+                    if (iface["name"].toString().startsWith("wlan") || iface["name"].toString().startsWith("wl")) {
+                        m_currentWifiDetails["ip"] = iface["ips"].toList().value(0, "").toString();
+                        m_currentWifiDetails["mac"] = iface["mac"].toString();
+                        break;
+                    }
+                }
+                emit currentWifiDetailsChanged();
+                connectedList.append(wifi);
+            } else if (wifi["isSaved"].toBool()) {
+                savedList.append(wifi);
             } else {
-                newList.append(wifi);
+                otherList.append(wifi);
             }
         }
-        
+
+        auto sortByStrengthDesc = [&strengthValue](QVariantList &list) {
+            std::sort(list.begin(), list.end(), [&strengthValue](const QVariant &a, const QVariant &b) {
+                return strengthValue(a) > strengthValue(b);
+            });
+        };
+
+        sortByStrengthDesc(savedList);
+        sortByStrengthDesc(otherList);
+
+        QVariantList newList;
+        newList.append(connectedList);
+        newList.append(savedList);
+        newList.append(otherList);
+
         m_wifiList = newList;
         emit wifiListChanged();
     }
@@ -674,6 +800,35 @@ private:
         proc.waitForFinished();
         QString output = proc.readAllStandardOutput().trimmed();
         m_wifiEnabled = (output == "enabled");
+    }
+
+    void fetchSavedWifiList() {
+        QProcess proc;
+        // 列出类型为 wifi 的连接名称
+        proc.start("nmcli", QStringList() << "-t" << "-f" << "NAME,TYPE,AUTOCONNECT" << "connection" << "show");
+        proc.waitForFinished(1000); // 同步等待，最大1秒，避免阻塞太久
+        
+        if (proc.exitCode() == 0) {
+            QString output = proc.readAllStandardOutput();
+            QStringList lines = output.split('\n', Qt::SkipEmptyParts);
+            
+            m_savedSsids.clear();
+            m_savedAutoConnect.clear();
+            
+            for (const QString &line : lines) {
+                QStringList parts = line.split(':');
+                if (parts.size() >= 3) {
+                    QString name = parts[0];
+                    QString type = parts[1];
+                    QString autoConn = parts[2];
+                    
+                    if (type == "802-11-wireless") {
+                        m_savedSsids.append(name);
+                        if (autoConn == "yes") m_savedAutoConnect.insert(name);
+                    }
+                }
+            }
+        }
     }
 
     QTimer m_timer;
@@ -710,12 +865,13 @@ private:
     bool m_isScreenOn = true;
     bool m_longPressTriggered = false;
     QTimer *m_longPressTimer = nullptr;
-
     const QString TOUCH_INHIBIT_PATH = "/sys/devices/platform/soc@0/ac0000.geniqup/a90000.i2c/i2c-12/12-0020/rmi4-00/input/input5/inhibited";
 
     QVariantList m_wifiList;
     bool m_wifiEnabled = true;
-
     QTimer *m_wifiTimer = nullptr;
+    QStringList m_savedSsids; // 已保存的 SSID 列表
+    QSet<QString> m_savedAutoConnect; // 记录哪些是自动连接的
+    QVariantMap m_currentWifiDetails; // 当前连接详情
 };
 #endif // SYSTEMMONITOR_H
