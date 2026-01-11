@@ -55,6 +55,7 @@ qt_add_qml_module(appOrbital
         qml/WifiPage.qml
         qml/CustomKeyboard.qml
         qml/WifiConnectPage.qml
+        qml/AboutPage.qml
     RESOURCES
         assets/logo.svg
         assets/power.svg

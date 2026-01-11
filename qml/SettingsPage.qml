@@ -128,7 +128,7 @@ Rectangle {
                                 Rectangle {
                                     width: brightnessSlider.visualPosition * parent.width
                                     height: parent.height
-                                    color: "#00E676"
+                                    color: "#0079DB"
                                     radius: 2
                                 }
                             }
@@ -138,7 +138,7 @@ Rectangle {
                                 implicitWidth: 24; implicitHeight: 24
                                 radius: 12
                                 color: brightnessSlider.pressed ? "#f0f0f0" : "#ffffff"
-                                border.color: "#00E676"
+                                border.color: "#0079DB"
                             }
                         }
                     }
@@ -201,7 +201,9 @@ Rectangle {
                         id: tapAbout
                         onTapped: {
                             // 显示关于信息
-                            // stackView.push("qrc:/MyDesktop/Backend/qml/AboutPage.qml")
+                            stackView.push("qrc:/MyDesktop/Backend/qml/AboutPage.qml", {
+                                "backend": backend
+                            })
                         }
                     }
                 }

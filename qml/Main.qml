@@ -563,20 +563,11 @@ Window {
                     ColumnLayout {
                         spacing: 5
                         Text {
-                            text: "Orbital OS"
+                            text: "Orbital"
                             color: "white"
                             font.bold: true
                             font.pixelSize: 22
                             font.letterSpacing: 2
-                            Layout.alignment: Qt.AlignHCenter
-                        }
-                        
-                        // 版本号 Hash
-                        Text {
-                            text: "Build " + (typeof appBuildHash !== "undefined" ? appBuildHash.substring(0, 7) : "DEV")
-                            color: "#666"
-                            font.family: "Monospace"
-                            font.pixelSize: 12
                             Layout.alignment: Qt.AlignHCenter
                         }
                     }
@@ -760,7 +751,6 @@ Window {
                             gesturePolicy: TapHandler.WithinBounds
                             // 处理取消事件
                             onCanceled: {
-                                // 清理状态
                             }
                         }
                     }

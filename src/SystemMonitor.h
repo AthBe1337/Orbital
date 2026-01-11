@@ -21,7 +21,6 @@
 #include <linux/input.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <iostream>
 
 class SystemMonitor : public QObject
 {
@@ -53,6 +52,8 @@ class SystemMonitor : public QObject
     Q_PROPERTY(bool wifiEnabled READ wifiEnabled WRITE setWifiEnabled NOTIFY wifiEnabledChanged)
     // 当前连接的 WiFi 详细信息 (IP, MAC 等)
     Q_PROPERTY(QVariantMap currentWifiDetails READ currentWifiDetails NOTIFY currentWifiDetailsChanged)
+
+    Q_PROPERTY(QString osVersion READ osVersion CONSTANT)
 
 public:
     explicit SystemMonitor(QObject *parent = nullptr) : QObject(parent) {
@@ -294,6 +295,27 @@ public:
     Q_INVOKABLE void systemCmd(const QString &cmd) {
         if (cmd == "reboot") QProcess::execute("reboot");
         if (cmd == "poweroff") QProcess::execute("poweroff");
+    }
+
+    QString osVersion() {
+        QString content = readSysFile("/etc/os-release");
+        
+        QStringList lines = content.split('\n');
+        for (const QString &line : lines) {
+            if (line.startsWith("PRETTY_NAME=")) {
+                QString name = line.mid(12);
+                return name.replace("\"", "");
+            }
+        }
+        
+        for (const QString &line : lines) {
+            if (line.startsWith("NAME=")) {
+                QString name = line.mid(5);
+                return name.replace("\"", "");
+            }
+        }
+
+        return "Linux System";
     }
 
 signals:
