@@ -299,15 +299,43 @@ Page {
         }
     }
 
-    // Toast
+    // --- Toast 提示框 ---
     Rectangle {
         id: toast
-        color: "#333"; radius: 8
-        width: Math.min(parent.width - 40, toastText.implicitWidth + 40); height: toastText.implicitHeight + 20
-        anchors.bottom: parent.bottom; anchors.bottomMargin: 30; anchors.horizontalCenter: parent.horizontalCenter
-        opacity: 0; visible: opacity > 0
+        color: "#333"
+        radius: 8
+        
+        width: Math.min(parent.width - 40, toastText.implicitWidth + 40)
+        
+        height: toastText.implicitHeight + 20
+        
+        anchors.bottom: parent.bottom; anchors.bottomMargin: 30
+        anchors.horizontalCenter: parent.horizontalCenter
+        
+        opacity: 0
+        visible: opacity > 0
+        
         Behavior on opacity { NumberAnimation { duration: 300 } }
-        Text { id: toastText; text: toastMessage; color: "white"; anchors.centerIn: parent; wrapMode: Text.Wrap; font.pixelSize: 14 }
-        Timer { id: toastTimer; interval: 3000; onTriggered: toast.opacity = 0; onRunningChanged: if (running) toast.opacity = 1 }
+
+        Text {
+            id: toastText
+            text: toastMessage
+            color: "white"
+            font.pixelSize: 14
+            anchors.centerIn: parent
+
+            width: connectPage.width - 80 
+            
+            horizontalAlignment: Text.AlignHCenter 
+            
+            wrapMode: Text.Wrap
+        }
+
+        Timer {
+            id: toastTimer
+            interval: 3000
+            onTriggered: toast.opacity = 0
+            onRunningChanged: if (running) toast.opacity = 1
+        }
     }
 }
