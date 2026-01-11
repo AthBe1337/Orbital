@@ -9,6 +9,7 @@ Page {
 
     property var backend
     property var wifiData: ({}) 
+    property var onOperationStart: null
 
     // 内部状态
     readonly property bool isConnected: wifiData.connected === true
@@ -186,6 +187,7 @@ Page {
                         }
                         
                         onClicked: {
+                            if (onOperationStart) onOperationStart(wifiData.ssid)
                             backend.disconnectFromWifi(wifiData.ssid)
                             stackView.pop() // 断开后返回列表页
                         }
@@ -215,14 +217,14 @@ Page {
                             Layout.fillWidth: true; Layout.preferredHeight: 45
                             background: Rectangle { color: "#332a2a"; radius: 8 }
                             contentItem: Text { text: parent.text; color: "#FF5252"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                            onClicked: { backend.forgetNetwork(wifiData.ssid); stackView.pop() }
+                            onClicked: { if (onOperationStart) onOperationStart(wifiData.ssid); backend.forgetNetwork(wifiData.ssid); stackView.pop() }
                         }
                         Button {
                             text: "Connect"
                             Layout.fillWidth: true; Layout.preferredHeight: 45
                             background: Rectangle { color: "#2979FF"; radius: 8 }
                             contentItem: Text { text: parent.text; color: "white"; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                            onClicked: { backend.connectToWifi(wifiData.ssid, ""); stackView.pop() }
+                            onClicked: { if (onOperationStart) onOperationStart(wifiData.ssid); backend.connectToWifi(wifiData.ssid, ""); stackView.pop() }
                         }
                     }
                 }
@@ -338,6 +340,7 @@ Page {
     // --- 逻辑函数 ---
     function confirmConnect() {
         if (isNew) {
+            if (onOperationStart) onOperationStart(wifiData.ssid)
             backend.connectToWifi(wifiData.ssid, passInput.text)
             stackView.pop()
         }

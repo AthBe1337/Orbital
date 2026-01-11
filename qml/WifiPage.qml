@@ -8,6 +8,7 @@ Page {
     background: Rectangle { color: "#121212" }
 
     property var backend
+    property string pendingSsid: ""
     
     // --- 内部 UI 状态 ---
     property bool isScanning: false
@@ -20,6 +21,7 @@ Page {
         function onWifiListChanged() { isScanning = false }
         function onWifiEnabledChanged() { isToggling = false }
         function onWifiOperationResult(op, success, msg) {
+            pendingSsid = ""
             if (op === "toggle") isToggling = false
             if (!success) showToast("Error: " + msg)
             else if (op === "forget") showToast("Network forgotten")
@@ -249,10 +251,11 @@ Page {
                     ItemDelegate {
                         width: parent.width; height: 64
                         background: Rectangle { color: parent.down ? "#2a2a2a" : "transparent" }
+
                         contentItem: RowLayout {
                             spacing: 15; anchors.leftMargin: 20; anchors.rightMargin: 20
-                            
-                            // 图标
+
+                            // 1. 左侧信号图标 (保持不变)
                             Item {
                                 Layout.preferredWidth: 24; Layout.preferredHeight: 24; Layout.alignment: Qt.AlignVCenter
                                 property int signalLevel: {
@@ -267,8 +270,8 @@ Page {
                                     color: modelData.connected ? "#26A8FF" : "white"
                                 }
                             }
-                            
-                            // 文字
+
+                            // 2. 中间文字 (保持不变)
                             ColumnLayout {
                                 Layout.fillWidth: true; spacing: 4; Layout.alignment: Qt.AlignVCenter
                                 Text { 
@@ -280,19 +283,57 @@ Page {
                                     text: modelData.connected ? "Connected" : (modelData.isSaved ? "Saved" : (modelData.securityType === "" ? "Open" : modelData.securityType))
                                 }
                             }
-                            
-                            // 状态图标
+
+                            // 3. 右侧状态图标 (修改部分)
                             Item {
-                                Layout.preferredWidth: 24; Layout.preferredHeight: 24; Layout.alignment: Qt.AlignVCenter
+                                Layout.preferredWidth: 24; Layout.preferredHeight: 24
+                                Layout.alignment: Qt.AlignVCenter
+                                
+                                // 判断当前项是否正在处理中
+                                property bool isProcessing: pendingSsid === modelData.ssid
+
+                                // A. 正常状态图标 (锁/勾)
                                 IconImage {
                                     anchors.centerIn: parent
+                                    visible: !parent.isProcessing // 没有处理时显示
                                     source: modelData.connected ? "qrc:/MyDesktop/Backend/assets/check.svg" : (modelData.secured ? "qrc:/MyDesktop/Backend/assets/lock.svg" : "")
                                     sourceSize: Qt.size(18, 18)
                                     color: modelData.connected ? "#26A8FF" : "#666"
                                 }
+
+                                // B. 加载中转圈图标
+                                Rectangle {
+                                    anchors.centerIn: parent
+                                    visible: parent.isProcessing // 处理中显示
+                                    width: 18; height: 18; radius: 9
+                                    color: "transparent"
+                                    border.width: 2; border.color: "#26A8FF" // 蓝色转圈
+                                    
+                                    // 遮罩一个小缺口，形成旋转效果
+                                    Rectangle { width: 8; height: 8; x: 9; y: 0; color: "#121212" } // 颜色要和背景色一致
+                                    
+                                    RotationAnimator on rotation {
+                                        running: parent.visible
+                                        from: 0; to: 360
+                                        duration: 1000
+                                        loops: Animation.Infinite
+                                    }
+                                }
                             }
                         }
-                        onClicked: stackView.push("qrc:/MyDesktop/Backend/qml/WifiConnectPage.qml", { "backend": backend, "wifiData": modelData })
+
+                        onClicked: {
+                            stackView.push("qrc:/MyDesktop/Backend/qml/WifiConnectPage.qml", {
+                                "backend": backend,
+                                "wifiData": modelData,
+                                
+                                // 【关键】传入回调函数
+                                // 当详情页开始操作时，调用此函数设置 pendingSsid
+                                "onOperationStart": function(ssid) {
+                                    wifiPage.pendingSsid = ssid
+                                }
+                            })
+                        }
                     }
                 }
             }
