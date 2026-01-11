@@ -234,6 +234,8 @@ public:
 
         QString val = autoConnect ? "yes" : "no";
         proc->start("nmcli", QStringList() << "connection" << "modify" << "id" << ssid << "connection.autoconnect" << val);
+
+        fetchSavedWifiList(); // 修改后立即更新已保存列表状态，确保前端显示正确的自动连接状态
     }
 
     // 扫描网络
