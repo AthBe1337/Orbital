@@ -135,13 +135,12 @@ Page {
                             Layout.alignment: Qt.AlignVCenter
 
                             // 计算信号等级 (0-4)
-                            // nmcli 返回的 level 是 unicode 字符串，如 "▂▄▆_"
                             property int signalLevel: {
-                                var s = modelData.level;
-                                if (s.indexOf("█") !== -1) return 4;
-                                if (s.indexOf("▆") !== -1) return 3;
-                                if (s.indexOf("▄") !== -1) return 2;
-                                if (s.indexOf("▂") !== -1) return 1;
+                                var s = Number(modelData.level);
+                                if (isNaN(s)) return 0;
+                                if (s >= 75) return 3;
+                                if (s >= 50) return 2;
+                                if (s >= 25) return 1;
                                 return 0;
                             }
 
