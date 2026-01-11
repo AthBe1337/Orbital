@@ -1,8 +1,15 @@
+![](https://imagehost.athbe.cn/wp-content/uploads/2026/01/1768156951-Orbital-logo.png)
+
 # Orbital
 
 **Orbital** 是一个专为 Linux 移动设备设计的现代化、轻量级桌面环境（Dashboard）。
 
 它基于 **Qt 6** 和 **QML** 构建，旨在以极低的资源占用提供流畅的动画效果和直观的交互体验。Orbital 能够让用户实时掌握设备运行状态，并轻松管理无线网络与硬件设置。
+
+## 截图
+
+![](https://imagehost.athbe.cn/wp-content/uploads/2026/01/1768156959-pintu-fulicat.com-1768156829261.jpg)
+
 
 ## 主要功能
 
@@ -41,8 +48,8 @@ Orbital 目前包含以下核心模块：
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/your-username/orbital.git
-cd orbital
+git clone https://github.com/AthBe1337/Orbital.git
+cd Orbital
 
 # 2. 创建构建目录
 mkdir build && cd build
@@ -55,20 +62,7 @@ make -j$(nproc)
 ./appOrbital
 
 # 可选：注册为服务
-
 ```
-
-## 截图
-
-*(在此处添加项目运行时的截图，例如主仪表盘、WiFi连接页面的图片)*
-
-> [!TIP]
-> 截图建议包含：
-> 1. 主页面显示 CPU/内存/电池状态。
-> 2. WiFi 扫描列表页面。
-> 3. 设置页面或亮度调节效果。
-> 
-> 
 
 ## 注意
 
