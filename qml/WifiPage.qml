@@ -7,70 +7,181 @@ Page {
     id: wifiPage
     background: Rectangle { color: "#121212" }
 
-    property var backend // 从外部传入 SystemMonitor 实例
-    property string selectedSsid: ""
+    property var backend
+    
+    // --- 内部 UI 状态 ---
+    property bool isScanning: false
+    property bool isToggling: false
+    property string toastMessage: ""
 
-    // --- 主界面 ---
+    // 监听后端信号
+    Connections {
+        target: backend
+        function onWifiListChanged() { isScanning = false }
+        function onWifiEnabledChanged() { isToggling = false }
+        function onWifiOperationResult(op, success, msg) {
+            if (op === "toggle") isToggling = false
+            if (!success) showToast("Error: " + msg)
+            else if (op === "forget") showToast("Network forgotten")
+            else if (op === "connect") showToast("Connected successfully")
+        }
+    }
+
+    function showToast(msg) {
+        toastMessage = msg
+        toastTimer.restart()
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
 
+        // ============================================================
         // 1. 标题栏
+        // ============================================================
         Rectangle {
-            Layout.fillWidth: true; height: 52; color: "#1e1e1e"
+            Layout.fillWidth: true
+            height: 52 
+            color: "#1e1e1e"
+            z: 10
+            
             RowLayout {
-                anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 15
+                anchors.fill: parent
+                spacing: 0
+                anchors.leftMargin: 10
+                anchors.rightMargin: 15
+
+                // 返回按钮
                 ToolButton {
-                    // 强制设置按钮大小为 48x48 (标准触控尺寸)
                     Layout.preferredWidth: 52 
                     Layout.fillHeight: true 
-                    
-                    // 使用 SVG 图标替换文本箭头
                     contentItem: IconImage {
                         anchors.centerIn: parent
                         source: "qrc:/MyDesktop/Backend/assets/back.svg"
                         sourceSize: Qt.size(48, 48)
                         color: "white"
                     }
-                    
-                    background: Rectangle { 
-                        color: parent.pressed ? "#333" : "transparent" 
-                    }
-                    
-                    // 发出信号
+                    background: Rectangle { color: parent.pressed ? "#333" : "transparent" }
                     onClicked: stackView.pop()
                 }
-                Text { text: "WLAN"; color: "white"; font.bold: true; font.pixelSize: 20 }
+
+                // 标题文字 (25px Bold)
+                Text {
+                    text: "WLAN"
+                    color: "white"
+                    font.bold: true
+                    font.pixelSize: 25
+                    Layout.leftMargin: 5
+                }
+                
+                // 弹簧撑开中间
                 Item { Layout.fillWidth: true }
+                
+                // 刷新按钮
                 ToolButton {
+                    visible: backend.wifiEnabled
                     Layout.preferredWidth: 52 
                     Layout.fillHeight: true 
-                    contentItem: IconImage { 
+                    
+                    background: Rectangle { color: parent.pressed ? "#333" : "transparent"; radius: 4 }
+                    
+                    contentItem: IconImage {
+                        id: refreshIcon
                         anchors.centerIn: parent
                         source: "qrc:/MyDesktop/Backend/assets/refresh.svg"
-                        sourceSize: Qt.size(30,30)
+                        sourceSize: Qt.size(28,28)
                         color: "white"
+                        
+                        RotationAnimator on rotation {
+                            running: isScanning
+                            from: 0; to: 360
+                            duration: 1000
+                            loops: Animation.Infinite
+                            
+                            onRunningChanged: { 
+                                if (!running) refreshIcon.rotation = 0 
+                            }
+                        }
                     }
-                    background: Rectangle { color: parent.pressed ? "#333" : "transparent"; radius: 4 }
-                    onClicked: backend.scanWifiNetworks()
-                    visible: backend.wifiEnabled
+
+                    onClicked: {
+                        isScanning = true
+                        backend.scanWifiNetworks()
+                    }
                 }
             }
         }
 
-        // 2. 开关区域 (固定高度，不动)
+        // ============================================================
+        // 开关区域
+        // ============================================================
         Rectangle {
-            Layout.fillWidth: true; height: 60; color: "#121212"
-            z: 2 // 稍微提高层级
+            Layout.fillWidth: true; height: 72 
+            color: "#121212"
+            z: 2
+            
             RowLayout {
-                anchors.fill: parent; anchors.margins: 20
-                Text { text: "Use WLAN"; color: "white"; font.pixelSize: 16; Layout.fillWidth: true }
-                Switch {
-                    checked: backend.wifiEnabled
-                    onToggled: backend.wifiEnabled = checked
-                    indicator: Rectangle {
-                        implicitWidth: 48; implicitHeight: 26; radius: 13; color: parent.checked ? "#26A8FF" : "#333"
-                        Rectangle { x: parent.parent.checked ? parent.width - width - 2 : 2; y: 2; width: 22; height: 22; radius: 11; color: "white"; Behavior on x { NumberAnimation { duration: 200 } } }
+                anchors.fill: parent; anchors.leftMargin: 20; anchors.rightMargin: 20
+                
+                // 左侧文字
+                Text { 
+                    text: "Enable WLAN"
+                    color: "white"; font.pixelSize: 18
+                }
+                
+                Item { Layout.fillWidth: true }
+                
+                // 右侧开关容器
+                Item {
+                    Layout.preferredWidth: 50; Layout.preferredHeight: 30
+                    
+                    // 正常状态显示开关
+                    Switch {
+                        id: masterSwitch
+                        anchors.centerIn: parent
+                        visible: !isToggling
+                        checked: backend.wifiEnabled
+                        
+                        topPadding: 0
+                        bottomPadding: 0
+                        leftPadding: 0
+                        rightPadding: 0
+                        
+                        onClicked: {
+                            isToggling = true
+                            backend.wifiEnabled = checked
+                        }
+                        
+                        indicator: Rectangle {
+                            implicitWidth: 48; implicitHeight: 26; radius: 13
+                            color: masterSwitch.checked ? "#26A8FF" : "#333"
+                            
+                            anchors.verticalCenter: parent.verticalCenter
+                            
+                            Rectangle { 
+                                x: masterSwitch.checked ? parent.width - width - 2 : 2; y: 2
+                                width: 22; height: 22; radius: 11
+                                color: "white"
+                                Behavior on x { NumberAnimation { duration: 200 } } 
+                            }
+                        }
+                    }
+                    
+                    // 切换中显示小菊花 (位置与 Switch 重叠)
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: 22; height: 22; radius: 11
+                        color: "transparent"
+                        border.width: 2; border.color: "#888"
+                        visible: isToggling
+                        
+                        // 部分透明造成旋转视觉效果
+                        Rectangle { width: 10; height: 10; x: 10; y: 0; color: "#121212" } 
+                        
+                        RotationAnimator on rotation {
+                            running: parent.visible
+                            from: 0; to: 360; duration: 1000; loops: Animation.Infinite
+                        }
                     }
                 }
             }
@@ -78,149 +189,125 @@ Page {
 
         Rectangle { Layout.fillWidth: true; height: 1; color: "#333" }
 
-        // 3. 内容容器 (占满剩余空间)
+        // ============================================================
+        // 内容容器
+        // ============================================================
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true 
 
-            // --- 状态 A: WiFi 已关闭 (居中显示) ---
+            // WiFi 已关闭提示
             ColumnLayout {
                 anchors.centerIn: parent
-                visible: !backend.wifiEnabled
+                visible: !backend.wifiEnabled && !isToggling
                 spacing: 15
-                
-                // 圆形背景图标
                 Rectangle {
                     Layout.alignment: Qt.AlignHCenter
-                    width: 80; height: 80
-                    color: "#222"
-                    radius: 40
-                    IconImage {
-                        anchors.centerIn: parent
-                        source: "qrc:/MyDesktop/Backend/assets/wifi-off.svg" 
-                        sourceSize: Qt.size(40, 40)
-                        color: "#666"
-                    }
+                    width: 80; height: 80; color: "#222"; radius: 40
+                    IconImage { anchors.centerIn: parent; source: "qrc:/MyDesktop/Backend/assets/wifi-off.svg"; sourceSize: Qt.size(40, 40); color: "#666" }
                 }
-                Text {
-                    text: "WLAN is off"
-                    color: "#666"
-                    font.pixelSize: 16
-                    Layout.alignment: Qt.AlignHCenter
-                }
+                Text { text: "WLAN is off"; color: "#666"; font.pixelSize: 16; Layout.alignment: Qt.AlignHCenter }
             }
 
-            // --- 状态 B: WiFi 列表 ---
+            // WiFi 列表
             ListView {
+                id: wifiListView
                 anchors.fill: parent
                 clip: true
-                model: backend.wifiList
                 visible: backend.wifiEnabled
+                model: backend.wifiList
 
-                delegate: ItemDelegate {
-                    width: ListView.view ? ListView.view.width : 0
-                    height: 64
-                    
-                    background: Rectangle { color: parent.down ? "#2a2a2a" : "transparent" }
+                Text {
+                    visible: parent.count === 0 && !isScanning
+                    text: "No networks found"; color: "#666"; anchors.centerIn: parent; font.pixelSize: 16
+                }
 
-                    contentItem: RowLayout {
-                        spacing: 15
-                        anchors.leftMargin: 20; anchors.rightMargin: 20
+                delegate: Column {
+                    width: ListView.view.width
+                    property string currentCategory: getCategory(modelData)
+                    property string prevCategory: index > 0 ? getCategory(backend.wifiList[index - 1]) : ""
+                    property bool showHeader: index === 0 || currentCategory !== prevCategory
 
-                        // [固定宽度的容器] 1. 信号图标
-                        // 这样即使换图标，右边的文字也不会跳动
-                        Item {
-                            Layout.preferredWidth: 24
-                            Layout.preferredHeight: 24
-                            Layout.alignment: Qt.AlignVCenter
+                    function getCategory(data) {
+                        if (!data) return ""
+                        if (data.connected) return "Current Network"
+                        if (data.isSaved) return "Saved Networks"
+                        return "Available Networks"
+                    }
 
-                            // 计算信号等级 (0-4)
-                            property int signalLevel: {
-                                var s = Number(modelData.level);
-                                if (isNaN(s)) return 0;
-                                if (s >= 75) return 3;
-                                if (s >= 50) return 2;
-                                if (s >= 25) return 1;
-                                return 0;
-                            }
-
-                            IconImage {
-                                anchors.centerIn: parent
-                                // 动态拼接文件名: wifi_0.svg ... wifi_4.svg
-                                source: "qrc:/MyDesktop/Backend/assets/wifi_" + parent.signalLevel + ".svg"
-                                sourceSize: Qt.size(24, 24)
-                                // 已连接显示蓝色，否则白色
-                                color: modelData.connected ? "#26A8FF" : "white"
-                            }
+                    // 分组标题
+                    Item {
+                        width: parent.width; height: 40; visible: showHeader
+                        Text {
+                            anchors.left: parent.left; anchors.leftMargin: 20
+                            anchors.bottom: parent.bottom; anchors.bottomMargin: 5
+                            text: currentCategory; color: "#26A8FF"; font.bold: true; font.pixelSize: 14
                         }
+                    }
 
-                        // [自适应] 2. 名称与状态
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 4
-                            Layout.alignment: Qt.AlignVCenter
+                    // 列表项
+                    ItemDelegate {
+                        width: parent.width; height: 64
+                        background: Rectangle { color: parent.down ? "#2a2a2a" : "transparent" }
+                        contentItem: RowLayout {
+                            spacing: 15; anchors.leftMargin: 20; anchors.rightMargin: 20
                             
-                            Text { 
-                                text: modelData.ssid
-                                color: modelData.connected ? "#26A8FF" : "white"
-                                font.bold: true
-                                font.pixelSize: 16
-                                elide: Text.ElideRight
-                                Layout.fillWidth: true
+                            // 图标
+                            Item {
+                                Layout.preferredWidth: 24; Layout.preferredHeight: 24; Layout.alignment: Qt.AlignVCenter
+                                property int signalLevel: {
+                                    var s = Number(modelData.level);
+                                    if (isNaN(s)) return 0;
+                                    return s >= 75 ? 3 : (s >= 50 ? 2 : (s >= 25 ? 1 : 0));
+                                }
+                                IconImage {
+                                    anchors.centerIn: parent
+                                    source: "qrc:/MyDesktop/Backend/assets/wifi_" + parent.signalLevel + ".svg"
+                                    sourceSize: Qt.size(24, 24)
+                                    color: modelData.connected ? "#26A8FF" : "white"
+                                }
                             }
-                            Text {
-                                id: statusText
-                                color: "#888"
-                                font.pixelSize: 12
-                                Layout.fillWidth: true
-                                
-                                text: {
-                                    if (modelData.connected) {
-                                        return "Connected";
-                                    } else {
-                                        // 如果 securityType 为空，显示 Open
-                                        // 否则显示具体的类型 (如 WPA2)
-                                        return modelData.securityType === "" ? "Open" : modelData.securityType
-                                    }
+                            
+                            // 文字
+                            ColumnLayout {
+                                Layout.fillWidth: true; spacing: 4; Layout.alignment: Qt.AlignVCenter
+                                Text { 
+                                    text: modelData.ssid; color: modelData.connected ? "#26A8FF" : "white"
+                                    font.bold: true; font.pixelSize: 16; elide: Text.ElideRight; Layout.fillWidth: true
+                                }
+                                Text {
+                                    color: "#888"; font.pixelSize: 12; Layout.fillWidth: true
+                                    text: modelData.connected ? "Connected" : (modelData.isSaved ? "Saved" : (modelData.securityType === "" ? "Open" : modelData.securityType))
+                                }
+                            }
+                            
+                            // 状态图标
+                            Item {
+                                Layout.preferredWidth: 24; Layout.preferredHeight: 24; Layout.alignment: Qt.AlignVCenter
+                                IconImage {
+                                    anchors.centerIn: parent
+                                    source: modelData.connected ? "qrc:/MyDesktop/Backend/assets/check.svg" : (modelData.secured ? "qrc:/MyDesktop/Backend/assets/lock.svg" : "")
+                                    sourceSize: Qt.size(18, 18)
+                                    color: modelData.connected ? "#26A8FF" : "#666"
                                 }
                             }
                         }
-
-                        // [固定位置] 3. 右侧状态图标 (锁/勾)
-                        Item {
-                            Layout.preferredWidth: 24
-                            Layout.preferredHeight: 24
-                            Layout.alignment: Qt.AlignVCenter
-                            
-                            IconImage {
-                                anchors.centerIn: parent
-                                source: modelData.connected ? "qrc:/MyDesktop/Backend/assets/check.svg" : (modelData.secured ? "qrc:/MyDesktop/Backend/assets/lock.svg" : "")
-                                sourceSize: Qt.size(18, 18)
-                                color: modelData.connected ? "#26A8FF" : "#666"
-                            }
-                        }
+                        onClicked: stackView.push("qrc:/MyDesktop/Backend/qml/WifiConnectPage.qml", { "backend": backend, "wifiData": modelData })
                     }
-
-                    onClicked: {
-                        stackView.push("qrc:/MyDesktop/Backend/qml/WifiConnectPage.qml", {
-                            "backend": backend,
-                            "wifiData": modelData
-                        })
-                    }
-                }
-                
-                Text {
-                    visible: parent.count === 0 && backend.wifiEnabled
-                    text: "Scanning..."
-                    color: "#666"
-                    anchors.centerIn: parent
-                    font.pixelSize: 16
                 }
             }
         }
     }
 
-    Component.onCompleted: {
-        if (backend.wifiEnabled) backend.scanWifiNetworks()
+    // Toast
+    Rectangle {
+        id: toast
+        color: "#333"; radius: 8
+        width: Math.min(parent.width - 40, toastText.implicitWidth + 40); height: toastText.implicitHeight + 20
+        anchors.bottom: parent.bottom; anchors.bottomMargin: 30; anchors.horizontalCenter: parent.horizontalCenter
+        opacity: 0; visible: opacity > 0
+        Behavior on opacity { NumberAnimation { duration: 300 } }
+        Text { id: toastText; text: toastMessage; color: "white"; anchors.centerIn: parent; wrapMode: Text.Wrap; font.pixelSize: 14 }
+        Timer { id: toastTimer; interval: 3000; onTriggered: toast.opacity = 0; onRunningChanged: if (running) toast.opacity = 1 }
     }
 }
