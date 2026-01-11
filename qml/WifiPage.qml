@@ -302,19 +302,15 @@ Page {
     // --- Toast 提示框 ---
     Rectangle {
         id: toast
-        color: "#333"
-        radius: 8
+        color: "#333"; radius: 8
         
         width: Math.min(parent.width - 40, toastText.implicitWidth + 40)
-        
         height: toastText.implicitHeight + 20
         
         anchors.bottom: parent.bottom; anchors.bottomMargin: 30
         anchors.horizontalCenter: parent.horizontalCenter
         
-        opacity: 0
-        visible: opacity > 0
-        
+        opacity: 0; visible: opacity > 0
         Behavior on opacity { NumberAnimation { duration: 300 } }
 
         Text {
@@ -323,11 +319,10 @@ Page {
             color: "white"
             font.pixelSize: 14
             anchors.centerIn: parent
-
-            width: connectPage.width - 80 
+            
+            width: toast.parent.width - 80 
             
             horizontalAlignment: Text.AlignHCenter 
-            
             wrapMode: Text.Wrap
         }
 
