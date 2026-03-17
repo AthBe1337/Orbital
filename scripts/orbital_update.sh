@@ -44,7 +44,7 @@ restart_and_check_service() {
         fi
     done
 
-    echo "=> [错误] 连续 $max_retries 次重启后仍然出现 DRM 错误，请尝试手动执行 sudo systemctl restart orbital.service 或检查显示权限！"
+    echo "=> [错误] 连续 $max_retries 次重启后仍然出现 DRM 错误，请尝试手动执行 sudo systemctl restart orbital.service 或检查显示权限，如果 Orbital 已正常显示请忽略。"
     # 返回非 0 状态但不中断脚本
     return 1
 }
