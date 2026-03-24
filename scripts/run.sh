@@ -8,7 +8,7 @@ export QT_QPA_PLATFORM=eglfs
 export QT_QPA_GENERIC_PLUGINS=evdevtouch:/dev/input/event5
 RESTART_EXIT_CODE=42
 while true; do
-    ./appOrbital
+    ./Orbital
     EXIT_CODE=$?
 
     if [ $EXIT_CODE -ne $RESTART_EXIT_CODE ]; then

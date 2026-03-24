@@ -68,7 +68,7 @@ cmake ..
 make -j$(nproc)
 
 # 4. 运行
-./appOrbital
+./Orbital
 
 # 可选：注册为服务
 ```

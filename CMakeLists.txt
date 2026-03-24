@@ -70,6 +70,10 @@ target_compile_definitions(appOrbital
     GIT_COMMIT_HASH="${GIT_HASH}" 
 )
 
+set_target_properties(appOrbital PROPERTIES
+    OUTPUT_NAME "Orbital"
+)
+
 # 注册 QML 模块
 qt_add_qml_module(appOrbital
     URI "MyDesktop.Backend"
