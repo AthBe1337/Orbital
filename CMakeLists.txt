@@ -11,7 +11,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 # 查找 Qt 库
-find_package(Qt6 COMPONENTS Quick Core REQUIRED)
+find_package(Qt6 COMPONENTS Quick Core Network REQUIRED)
 
 # 获取当前 Git 提交的短哈希值
 find_package(Git)
@@ -47,6 +47,14 @@ message(STATUS "Current Git Hash: ${GIT_HASH}")
 qt_add_executable(appOrbital
     src/main.cpp
     src/SystemMonitor.h
+    src/SystemMonitor.cpp
+    src/backend/SystemHelpers.h
+    src/backend/SystemStatsBackend.h
+    src/backend/SystemStatsBackend.cpp
+    src/backend/DisplayBackend.h
+    src/backend/DisplayBackend.cpp
+    src/backend/WifiBackend.h
+    src/backend/WifiBackend.cpp
 )
 
 target_compile_definitions(appOrbital
@@ -95,7 +103,7 @@ qt_add_qml_module(appOrbital
 
 # 链接库
 target_link_libraries(appOrbital
-    PRIVATE Qt6::Quick Qt6::Core
+    PRIVATE Qt6::Quick Qt6::Core Qt6::Network
 )
 
 # 将scripts/run.sh复制到构建目录
