@@ -59,6 +59,10 @@ qt_add_executable(appOrbital
     src/backend/DisplayBackend.cpp
     src/backend/WifiBackend.h
     src/backend/WifiBackend.cpp
+    src/backend/TerminalLineModel.h
+    src/backend/TerminalLineModel.cpp
+    src/backend/TerminalBackend.h
+    src/backend/TerminalBackend.cpp
 )
 
 target_compile_definitions(appOrbital
@@ -80,6 +84,8 @@ qt_add_qml_module(appOrbital
         qml/CustomKeyboard.qml
         qml/WifiConnectPage.qml
         qml/AboutPage.qml
+        qml/TerminalView.qml
+        qml/TerminalPage.qml
     RESOURCES
         assets/logo.svg
         assets/power.svg
@@ -104,12 +110,18 @@ qt_add_qml_module(appOrbital
         assets/shift.svg
         assets/shift-filled.svg
         assets/backspace.svg
+        assets/terminal.svg
 )
 
 # 链接库
 target_link_libraries(appOrbital
     PRIVATE Qt6::Quick Qt6::Core Qt6::Network
 )
+
+find_library(UTIL_LIBRARY util)
+if(UTIL_LIBRARY)
+    target_link_libraries(appOrbital PRIVATE ${UTIL_LIBRARY})
+endif()
 
 # 将scripts/run.sh复制到构建目录
 configure_file(${CMAKE_SOURCE_DIR}/scripts/run.sh ${CMAKE_BINARY_DIR}/run.sh COPYONLY)

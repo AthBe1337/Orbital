@@ -18,6 +18,10 @@ Window {
         id: backend
     }
 
+    TerminalBackend {
+        id: terminalSession
+    }
+
     // --- 1. CPU 配色 (经典性能监控色: 绿 -> 黄 -> 红) ---
     function cpuColor(v) {
         var value = Math.max(0, Math.min(1, v));
@@ -598,6 +602,12 @@ Window {
                         action: "settings"; 
                         itemColor: "white" 
                     }
+                    ListElement {
+                        name: "Terminal";
+                        icon: "terminal.svg";
+                        action: "terminal";
+                        itemColor: "#81A1C1"
+                    }
                     // Reset Desktop (Exit 42)
                     ListElement { 
                         name: "Reset Desktop"; 
@@ -666,7 +676,12 @@ Window {
                         
                         if (model.action === "settings") {
                             stackView.push(settingsPage)
-                        } 
+                        }
+                        else if (model.action === "terminal") {
+                            stackView.push("qrc:/MyDesktop/Backend/qml/TerminalPage.qml", {
+                                "terminalBackend": terminalSession
+                            })
+                        }
                         else if (model.action === "reset") {
                             // 触发 Exit 42，配合 run.sh 重启
                             Qt.exit(42)

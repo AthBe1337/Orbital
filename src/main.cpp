@@ -1,14 +1,18 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include "backend/TerminalBackend.h"
 #include "SystemMonitor.h"
 
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
+    QCoreApplication::setOrganizationName(QStringLiteral("athbe"));
+    QCoreApplication::setApplicationName(QStringLiteral("Orbital"));
 
     // 注册 C++ 类型到 QML
     qmlRegisterType<SystemMonitor>("MyDesktop.Backend", 1, 0, "SystemMonitor");
+    qmlRegisterType<TerminalBackend>("MyDesktop.Backend", 1, 0, "TerminalBackend");
 
     QQmlApplicationEngine engine;
 
@@ -20,7 +24,7 @@ int main(int argc, char *argv[])
     
     // 设置为全局上下文属性，QML中可以直接使用 "appBuildHash" 变量
     engine.rootContext()->setContextProperty("appBuildHash", buildHash);
-    engine.rootContext()->setContextProperty("appName", "Orbital");
+    engine.rootContext()->setContextProperty("appName", QCoreApplication::applicationName());
 
     const QUrl url(QStringLiteral("qrc:/MyDesktop/Backend/qml/Main.qml"));
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,

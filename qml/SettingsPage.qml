@@ -177,7 +177,7 @@ Rectangle {
                         }
                     }
                 }
-                
+
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.leftMargin: 20

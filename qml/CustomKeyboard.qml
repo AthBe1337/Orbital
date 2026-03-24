@@ -15,6 +15,7 @@ Rectangle {
 
     // --- 公共接口 ---
     property var target: null // 当前控制的输入框
+    property var terminalTarget: null // 当前控制的终端后端
     property bool terminalMode: false // 切换 1:普通 / 2:终端 模式
     property bool showPreview: false // 是否显示按键气泡预览
 
@@ -27,6 +28,14 @@ Rectangle {
     property bool isSym2: false
     property bool isCtrl: false // Terminal Ctrl状态
     property bool isAlt: false  // Terminal Alt状态
+    readonly property int layoutSpacing: 4
+    readonly property int layoutMargins: 4
+    readonly property int extraRowCount: terminalMode ? 1 : 0
+    readonly property real terminalRowHeight: terminalMode ? 40 : 0
+    readonly property real mainRowHeight: Math.max(
+        44,
+        (height - (layoutMargins * 2) - (layoutSpacing * (3 + extraRowCount)) - terminalRowHeight) / 4
+    )
 
     // 动画
     Behavior on y { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
@@ -71,8 +80,8 @@ Rectangle {
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.margins: 4
-        spacing: 4
+        anchors.margins: keyboard.layoutMargins
+        spacing: keyboard.layoutSpacing
 
         // ============================
         // 0. 终端功能键行 (仅 terminalMode 显示)
@@ -80,8 +89,10 @@ Rectangle {
         RowLayout {
             visible: terminalMode
             Layout.fillWidth: true
-            Layout.preferredHeight: 40
-            spacing: 4
+            Layout.preferredHeight: keyboard.terminalRowHeight
+            Layout.minimumHeight: keyboard.terminalRowHeight
+            Layout.maximumHeight: keyboard.terminalRowHeight
+            spacing: keyboard.layoutSpacing
 
             Repeater {
                 model: termRow
@@ -96,11 +107,11 @@ Rectangle {
                         if (text === "Ctrl") isCtrl = !isCtrl
                         else if (text === "Alt") isAlt = !isAlt
                         else if (text === "Esc") handleSpecialKey(Qt.Key_Escape)
-                        else if (text === "Tab") insertText("\t")
-                        else if (text === "←") moveCursor(-1)
-                        else if (text === "→") moveCursor(1)
-                        else if (text === "↑") { /* Shell History Up */ }
-                        else if (text === "↓") { /* Shell History Down */ }
+                        else if (text === "Tab") handleSpecialKey(Qt.Key_Tab)
+                        else if (text === "←") handleSpecialKey(Qt.Key_Left)
+                        else if (text === "→") handleSpecialKey(Qt.Key_Right)
+                        else if (text === "↑") handleSpecialKey(Qt.Key_Up)
+                        else if (text === "↓") handleSpecialKey(Qt.Key_Down)
                     }
                 }
             }
@@ -114,9 +125,10 @@ Rectangle {
         // ============================
         Row {
             Layout.fillWidth: true
-            Layout.fillHeight: true // 允许拉伸
-            Layout.preferredHeight: 1 // 权重 1
-            spacing: 4
+            Layout.preferredHeight: keyboard.mainRowHeight
+            Layout.minimumHeight: keyboard.mainRowHeight
+            Layout.maximumHeight: keyboard.mainRowHeight
+            spacing: keyboard.layoutSpacing
             
             // 计算: (总宽 - 总间隙) / 数量
             property real keyWidth: (width - (spacing * (repeater1.count - 1))) / repeater1.count
@@ -137,9 +149,10 @@ Rectangle {
         // ============================
         Row {
             Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.preferredHeight: 1 // 权重 1
-            spacing: 4
+            Layout.preferredHeight: keyboard.mainRowHeight
+            Layout.minimumHeight: keyboard.mainRowHeight
+            Layout.maximumHeight: keyboard.mainRowHeight
+            spacing: keyboard.layoutSpacing
             
             // 使用 Padding 实现缩进，比 Item 占位更稳
             leftPadding: width * 0.03
@@ -163,9 +176,10 @@ Rectangle {
         // ============================
         Row {
             Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.preferredHeight: 1 // 权重 1
-            spacing: 4
+            Layout.preferredHeight: keyboard.mainRowHeight
+            Layout.minimumHeight: keyboard.mainRowHeight
+            Layout.maximumHeight: keyboard.mainRowHeight
+            spacing: keyboard.layoutSpacing
 
             // 计算逻辑：
             // Shift(1.5) + 中间N个(1.0) + Backspace(1.5)
@@ -214,7 +228,9 @@ Rectangle {
                 text: "←"
                 repeat: true 
                 onClicked: {
-                    if (target && target.text.length > 0) {
+                    if (terminalMode && terminalTarget) {
+                        sendTerminalKey(Qt.Key_Backspace)
+                    } else if (target && target.text.length > 0) {
                         var p = target.cursorPosition
                         if (p > 0) target.remove(p - 1, p)
                     }
@@ -227,9 +243,10 @@ Rectangle {
         // ============================
         Row {
             Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.preferredHeight: 1 // 权重 1
-            spacing: 4
+            Layout.preferredHeight: keyboard.mainRowHeight
+            Layout.minimumHeight: keyboard.mainRowHeight
+            Layout.maximumHeight: keyboard.mainRowHeight
+            spacing: keyboard.layoutSpacing
 
             // 布局：Switch(1.5) - Comma(1) - Space(4) - Dot(1) - Enter(1.5)
             // 总权重 = 1.5 + 1 + 4 + 1 + 1.5 = 9.0
@@ -277,7 +294,7 @@ Rectangle {
                         keyboard.visible = false
                         if (target) target.focus = false
                     } else {
-                        insertText("\n")
+                        sendTerminalKey(Qt.Key_Return)
                     }
                 }
             }
@@ -324,21 +341,25 @@ Rectangle {
             // 这对触摸屏非常友好，容错率高
             gesturePolicy: TapHandler.ReleaseWithinBounds
 
+            onTapped: {
+                if (!keyBtnRoot.repeat) {
+                    triggerKey()
+                }
+            }
+
             // 监听按下状态变化
             onPressedChanged: {
                 if (pressed) {
-                    // 1. 按下瞬间：立即触发
-                    triggerKey()
-                    
-                    // 2. 如果是连发键(如删除)，启动定时器
                     if (keyBtnRoot.repeat) {
+                        triggerKey()
                         repeatTimer.restart()
                     }
                 } else {
-                    // 3. 抬起瞬间：停止连发
                     repeatTimer.stop()
                 }
             }
+
+            onCanceled: repeatTimer.stop()
         }
 
         // 【连发定时器】(逻辑不变)
@@ -384,6 +405,14 @@ Rectangle {
     }
 
     function insertText(str) {
+        if (terminalMode && terminalTarget) {
+            var modifiers = terminalModifiers()
+            if (modifiers !== 0) terminalTarget.sendCharacter(str, modifiers)
+            else terminalTarget.sendText(str)
+            clearTerminalModifiers()
+            return
+        }
+
         if (!target) return
         var p = target.cursorPosition
         var t = target.text
@@ -400,8 +429,29 @@ Rectangle {
     }
 
     function handleSpecialKey(key) {
-        // 对于普通 TextField，很难模拟特殊键信号
-        // 这里留给后续 Terminal 组件扩展接口
-        console.log("Special Key:", key)
+        if (terminalMode && terminalTarget) {
+            sendTerminalKey(key)
+        } else {
+            // 对于普通 TextField，很难模拟特殊键信号
+            console.log("Special Key:", key)
+        }
+    }
+
+    function terminalModifiers() {
+        var modifiers = 0
+        if (isCtrl) modifiers |= Qt.ControlModifier
+        if (isAlt) modifiers |= Qt.AltModifier
+        return modifiers
+    }
+
+    function clearTerminalModifiers() {
+        isCtrl = false
+        isAlt = false
+    }
+
+    function sendTerminalKey(key) {
+        if (!terminalTarget) return
+        terminalTarget.sendKey(key, terminalModifiers())
+        clearTerminalModifiers()
     }
 }
