@@ -296,6 +296,11 @@ QByteArray keySequenceForKey(int key)
     }
 }
 
+bool isUnicodeKeyValue(int key)
+{
+    return key >= 0 && key <= 0x10ffff;
+}
+
 QList<int> parseCsiParams(const QString &body)
 {
     const QStringList parts = body.split(';');
@@ -519,7 +524,12 @@ void TerminalBackend::sendKey(int key, int modifiers)
 
     QByteArray sequence = keySequenceForKey(key);
     if (sequence.isEmpty()) {
-        sendCharacter(QString(QChar(static_cast<char16_t>(key))), modifiers);
+        if (!isUnicodeKeyValue(key)) {
+            return;
+        }
+
+        const char32_t codePoint = static_cast<char32_t>(key);
+        sendCharacter(QString::fromUcs4(&codePoint, 1), modifiers);
         return;
     }
 
