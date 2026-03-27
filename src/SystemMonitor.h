@@ -6,6 +6,7 @@
 
 class QTimer;
 class DisplayBackend;
+class LedBackend;
 class SystemStatsBackend;
 class WifiBackend;
 
@@ -35,6 +36,7 @@ class SystemMonitor : public QObject
     Q_PROPERTY(bool wifiEnabled READ wifiEnabled WRITE setWifiEnabled NOTIFY wifiEnabledChanged)
     Q_PROPERTY(QVariantMap currentWifiDetails READ currentWifiDetails NOTIFY currentWifiDetailsChanged)
     Q_PROPERTY(QString osVersion READ osVersion CONSTANT)
+    Q_PROPERTY(QObject* ledBackend READ ledBackend CONSTANT)
 
 public:
     explicit SystemMonitor(QObject *parent = nullptr);
@@ -62,6 +64,7 @@ public:
     bool wifiEnabled() const;
     QVariantMap currentWifiDetails() const;
     QString osVersion() const;
+    QObject *ledBackend() const;
 
     void setWifiEnabled(bool enable);
     void setBrightness(int percent);
@@ -89,6 +92,7 @@ private slots:
 private:
     SystemStatsBackend *m_statsBackend = nullptr;
     DisplayBackend *m_displayBackend = nullptr;
+    LedBackend *m_ledBackend = nullptr;
     WifiBackend *m_wifiBackend = nullptr;
     QTimer *m_timer = nullptr;
 };

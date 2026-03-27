@@ -64,6 +64,8 @@ qt_add_executable(appOrbital
     src/backend/SystemStatsBackend.cpp
     src/backend/DisplayBackend.h
     src/backend/DisplayBackend.cpp
+    src/backend/LedBackend.h
+    src/backend/LedBackend.cpp
     src/backend/WifiBackend.h
     src/backend/WifiBackend.cpp
     src/backend/TerminalLineModel.h
@@ -91,6 +93,7 @@ qt_add_qml_module(appOrbital
         qml/CircleProgress.qml
         qml/LineChart.qml
         qml/SettingsPage.qml
+        qml/LedPage.qml
         qml/WifiPage.qml
         qml/CustomKeyboard.qml
         qml/WifiConnectPage.qml
@@ -107,6 +110,7 @@ qt_add_qml_module(appOrbital
         assets/check.svg
         assets/wifi.svg
         assets/brightness.svg
+        assets/light.svg
         assets/wifi-off.svg
         assets/wifi_4.svg
         assets/wifi_3.svg

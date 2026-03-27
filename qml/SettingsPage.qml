@@ -12,6 +12,23 @@ Rectangle {
     required property var sysMon
     // 2. 发出返回信号，由 Main.qml 处理导航
     signal requestBack()
+    property var ledCtrl: root.sysMon ? root.sysMon.ledBackend : null
+
+    function ledModeLabel(modeId) {
+        if (!root.ledCtrl)
+            return ""
+
+        for (var i = 0; i < root.ledCtrl.modeOptions.length; ++i) {
+            var option = root.ledCtrl.modeOptions[i]
+            if (option.id === modeId)
+                return option.label
+        }
+
+        if (modeId === "custom")
+            return "Custom / Mixed"
+
+        return "Manual"
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -146,6 +163,51 @@ Rectangle {
                 }
 
                 Rectangle {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 20
+                    Layout.rightMargin: 20
+                    height: 60
+                    visible: root.ledCtrl && root.ledCtrl.hasLeds
+                    color: tapLed.pressed ? "#2a2a2a" : "#1e1e1e"
+                    radius: 12
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: 15
+
+                        IconImage {
+                            source: "qrc:/MyDesktop/Backend/assets/light.svg"
+                            sourceSize: Qt.size(24, 24)
+                            color: "white"
+                        }
+
+                        Text {
+                            text: "LEDs"
+                            color: "white"
+                            font.pixelSize: 16
+                            font.bold: true
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 10
+                        }
+
+                        Text {
+                            text: root.ledModeLabel(root.ledCtrl.currentMode)
+                            color: "#888"
+                            font.pixelSize: 12
+                        }
+                    }
+
+                    TapHandler {
+                        id: tapLed
+                        onTapped: {
+                            stackView.push("qrc:/MyDesktop/Backend/qml/LedPage.qml", {
+                                "backend": root.sysMon
+                            })
+                        }
+                    }
+                }
+
+                Rectangle {
                     Layout.fillWidth: true; Layout.leftMargin: 20; Layout.rightMargin: 20
                     height: 60
                     color: tapWifi.pressed ? "#2a2a2a" : "#1e1e1e"
@@ -203,7 +265,7 @@ Rectangle {
                         onTapped: {
                             // 显示关于信息
                             stackView.push("qrc:/MyDesktop/Backend/qml/AboutPage.qml", {
-                                "backend": backend
+                                "backend": root.sysMon
                             })
                         }
                     }

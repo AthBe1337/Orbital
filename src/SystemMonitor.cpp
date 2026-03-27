@@ -1,6 +1,7 @@
 #include "SystemMonitor.h"
 
 #include "backend/DisplayBackend.h"
+#include "backend/LedBackend.h"
 #include "backend/SystemHelpers.h"
 #include "backend/SystemStatsBackend.h"
 #include "backend/WifiBackend.h"
@@ -12,6 +13,7 @@ SystemMonitor::SystemMonitor(QObject *parent)
     : QObject(parent)
     , m_statsBackend(new SystemStatsBackend(this))
     , m_displayBackend(new DisplayBackend(this))
+    , m_ledBackend(new LedBackend(this))
     , m_wifiBackend(new WifiBackend(this))
     , m_timer(new QTimer(this))
 {
@@ -154,6 +156,11 @@ QVariantMap SystemMonitor::currentWifiDetails() const
 QString SystemMonitor::osVersion() const
 {
     return Backend::readOsVersion();
+}
+
+QObject *SystemMonitor::ledBackend() const
+{
+    return m_ledBackend;
 }
 
 void SystemMonitor::setWifiEnabled(bool enable)
