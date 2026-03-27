@@ -759,7 +759,7 @@ void TerminalBackend::startSession()
         ::setenv("LOGNAME", userEnv.constData(), 1);
         ::setenv("LANG", langEnv.constData(), 1);
 
-        if (::chdir("/root") != 0) {
+        if (::chdir(homeEnv.constData()) != 0) {
             ::chdir("/");
         }
 
