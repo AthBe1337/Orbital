@@ -113,18 +113,32 @@ QString thermalColorForName(const QString &name)
 {
     const QString lower = name.toLower();
     if (lower.contains(QStringLiteral("cpu"))) {
-        return QStringLiteral("#4CAF50");
+        return QStringLiteral("#7FB59A");
     }
 
     if (lower.contains(QStringLiteral("gpu"))) {
-        return QStringLiteral("#B388FF");
+        return QStringLiteral("#A893CC");
     }
 
     if (lower.contains(QStringLiteral("mem")) || lower.contains(QStringLiteral("ebi"))) {
-        return QStringLiteral("#42A5F5");
+        return QStringLiteral("#7FAACC");
     }
 
-    return QStringLiteral("#FFC107");
+    if (lower.contains(QStringLiteral("wlan")) || lower.contains(QStringLiteral("modem"))
+        || lower.contains(QStringLiteral("q6"))) {
+        return QStringLiteral("#7FB7B5");
+    }
+
+    if (lower.contains(QStringLiteral("camera")) || lower.contains(QStringLiteral("video"))) {
+        return QStringLiteral("#C7A784");
+    }
+
+    if (lower.contains(QStringLiteral("charger")) || lower.contains(QStringLiteral("battery"))
+        || lower.contains(QStringLiteral("pm"))) {
+        return QStringLiteral("#CBB07E");
+    }
+
+    return QStringLiteral("#B9A98E");
 }
 
 } // namespace
@@ -443,45 +457,91 @@ void SystemDetailsBackend::readThermalSensors()
 {
     struct RawThermalEntry {
         QString key;
-        QString type;
+        QString name;
         double tempC = 0.0;
     };
 
+    auto tempToCelsius = [](qint64 tempRaw) {
+        return std::abs(tempRaw) >= 1000 ? (tempRaw / 1000.0) : static_cast<double>(tempRaw);
+    };
+
     QVector<RawThermalEntry> rawEntries;
-    QHash<QString, int> typeCounts;
+    QHash<QString, int> nameCounts;
 
-    const QDir thermalDir(QStringLiteral("/sys/class/thermal"));
-    const QStringList thermalEntries = thermalDir.entryList(QStringList() << QStringLiteral("thermal_zone*"),
-                                                            QDir::Dirs | QDir::NoDotAndDotDot,
-                                                            QDir::Name);
-    rawEntries.reserve(thermalEntries.size());
+    const QDir hwmonDir(QStringLiteral("/sys/class/hwmon"));
+    const QStringList hwmonEntries = hwmonDir.entryList(QStringList() << QStringLiteral("hwmon*"),
+                                                        QDir::Dirs | QDir::NoDotAndDotDot,
+                                                        QDir::Name);
+    rawEntries.reserve(hwmonEntries.size());
 
-    for (const QString &entryName : thermalEntries) {
-        const QString zonePath = thermalDir.filePath(entryName);
-        const QString type = Backend::readTextFile(zonePath + QStringLiteral("/type")).trimmed();
-        const qint64 tempRaw = Backend::readTextFile(zonePath + QStringLiteral("/temp")).toLongLong();
-        if (type.isEmpty() || tempRaw <= 0) {
+    for (const QString &entryName : hwmonEntries) {
+        const QString hwmonPath = hwmonDir.filePath(entryName);
+        const QString baseName = Backend::readTextFile(hwmonPath + QStringLiteral("/name")).trimmed();
+        if (baseName.isEmpty()) {
             continue;
         }
 
-        const double tempC = std::abs(tempRaw) >= 1000 ? (tempRaw / 1000.0) : static_cast<double>(tempRaw);
-        if (tempC <= 0.0) {
-            continue;
-        }
+        const QDir sensorDir(hwmonPath);
+        const QStringList tempInputs = sensorDir.entryList(QStringList() << QStringLiteral("temp*_input"),
+                                                           QDir::Files,
+                                                           QDir::Name);
+        for (const QString &tempInput : tempInputs) {
+            const qint64 tempRaw = Backend::readTextFile(sensorDir.filePath(tempInput)).toLongLong();
+            if (tempRaw <= 0) {
+                continue;
+            }
 
-        rawEntries.append({entryName, type, tempC});
-        typeCounts[type] += 1;
+            const double tempC = tempToCelsius(tempRaw);
+            if (tempC <= 0.0) {
+                continue;
+            }
+
+            QString displayName = baseName;
+            const QString sensorIndex = tempInput.mid(4, tempInput.size() - 10);
+            const QString label = Backend::readTextFile(sensorDir.filePath(QStringLiteral("temp%1_label").arg(sensorIndex))).trimmed();
+            if (!label.isEmpty()) {
+                displayName = QStringLiteral("%1 / %2").arg(baseName, label);
+            }
+
+            rawEntries.append({QStringLiteral("%1:%2").arg(entryName, tempInput), displayName, tempC});
+            nameCounts[displayName] += 1;
+        }
+    }
+
+    if (rawEntries.isEmpty()) {
+        const QDir thermalDir(QStringLiteral("/sys/class/thermal"));
+        const QStringList thermalEntries = thermalDir.entryList(QStringList() << QStringLiteral("thermal_zone*"),
+                                                                QDir::Dirs | QDir::NoDotAndDotDot,
+                                                                QDir::Name);
+        rawEntries.reserve(thermalEntries.size());
+
+        for (const QString &entryName : thermalEntries) {
+            const QString zonePath = thermalDir.filePath(entryName);
+            const QString type = Backend::readTextFile(zonePath + QStringLiteral("/type")).trimmed();
+            const qint64 tempRaw = Backend::readTextFile(zonePath + QStringLiteral("/temp")).toLongLong();
+            if (type.isEmpty() || tempRaw <= 0) {
+                continue;
+            }
+
+            const double tempC = tempToCelsius(tempRaw);
+            if (tempC <= 0.0) {
+                continue;
+            }
+
+            rawEntries.append({entryName, type, tempC});
+            nameCounts[type] += 1;
+        }
     }
 
     QVector<ThermalSample> sensors;
     sensors.reserve(rawEntries.size());
     for (const RawThermalEntry &entry : rawEntries) {
-        QString displayName = entry.type;
-        if (typeCounts.value(entry.type) > 1) {
-            displayName = QStringLiteral("%1 (%2)").arg(entry.type, entry.key);
+        QString displayName = entry.name;
+        if (nameCounts.value(entry.name) > 1) {
+            displayName = QStringLiteral("%1 (%2)").arg(entry.name, entry.key);
         }
 
-        sensors.append({entry.key, displayName, entry.tempC, thermalColorForName(entry.type)});
+        sensors.append({entry.key, displayName, entry.tempC, thermalColorForName(entry.name)});
     }
 
     std::sort(sensors.begin(), sensors.end(), [](const ThermalSample &left, const ThermalSample &right) {
