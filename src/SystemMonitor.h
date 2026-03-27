@@ -30,6 +30,7 @@ class SystemMonitor : public QObject
     Q_PROPERTY(QVariantList netTxHistory READ netTxHistory NOTIFY statsChanged)
     Q_PROPERTY(QString netRxSpeed READ netRxSpeed NOTIFY statsChanged)
     Q_PROPERTY(QString netTxSpeed READ netTxSpeed NOTIFY statsChanged)
+    Q_PROPERTY(QString loadAverage READ loadAverage NOTIFY statsChanged)
     Q_PROPERTY(int brightness READ brightness WRITE setBrightness NOTIFY brightnessChanged)
     Q_PROPERTY(QVariantList netInterfaces READ netInterfaces NOTIFY statsChanged)
     Q_PROPERTY(bool isScreenOn READ isScreenOn NOTIFY screenStateChanged)
@@ -60,6 +61,7 @@ public:
     QVariantList netTxHistory() const;
     QString netRxSpeed() const;
     QString netTxSpeed() const;
+    QString loadAverage() const;
     int brightness() const;
     QVariantList netInterfaces() const;
     bool isScreenOn() const;

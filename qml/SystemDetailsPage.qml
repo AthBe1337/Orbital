@@ -47,13 +47,14 @@ Page {
         property bool multiline: false
 
         Layout.fillWidth: true
-        implicitHeight: 82
+        implicitHeight: Math.max(82, tileLayout.implicitHeight + 28)
         radius: 10
         color: "#181D25"
         border.width: 1
         border.color: "#2F3847"
 
         ColumnLayout {
+            id: tileLayout
             anchors.fill: parent
             anchors.margins: 14
             spacing: 5
@@ -222,6 +223,42 @@ Page {
                             accentColor: "#00E676"
                         }
 
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 10
+
+                            SummaryTile {
+                                label: "System"
+                                value: backend ? backend.osVersion : "--"
+                                multiline: true
+                                accentColor: "#8FBCBB"
+                            }
+
+                            SummaryTile {
+                                label: "Kernel"
+                                value: backend ? backend.kernelVersion : "--"
+                                multiline: true
+                                accentColor: "#A3BE8C"
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 10
+
+                            SummaryTile {
+                                label: "Load Avg"
+                                value: backend ? backend.loadAverage : "--"
+                                accentColor: "#88C0D0"
+                            }
+
+                            SummaryTile {
+                                label: "Root FS"
+                                value: backend ? backend.diskRootUsage : "--"
+                                accentColor: "#D08770"
+                            }
+                        }
+
                         Rectangle {
                             Layout.fillWidth: true
                             height: 1
@@ -235,7 +272,7 @@ Page {
                             visible: detailsCtrl && detailsCtrl.ipAddresses.length > 0
 
                             Text {
-                                text: "Addresses"
+                                text: detailsCtrl ? ("Addresses · " + detailsCtrl.ipAddresses.length) : "Addresses"
                                 color: "#888"
                                 font.pixelSize: 12
                             }

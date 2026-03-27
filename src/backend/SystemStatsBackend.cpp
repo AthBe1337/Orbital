@@ -40,6 +40,7 @@ void SystemStatsBackend::update()
     appendHistory(m_cpuHistory, m_cpuTotal * 100.0);
     appendHistory(m_memHistory, m_memPercent * 100.0);
     readNetworkInfo();
+    readLoadAverage();
     readNetworkInterfaceDetails();
     emit statsUpdated();
 }
@@ -122,6 +123,11 @@ QString SystemStatsBackend::netRxSpeed() const
 QString SystemStatsBackend::netTxSpeed() const
 {
     return m_netTxSpeed;
+}
+
+QString SystemStatsBackend::loadAverage() const
+{
+    return m_loadAverage;
 }
 
 QVariantList SystemStatsBackend::netInterfaces() const
@@ -423,4 +429,15 @@ void SystemStatsBackend::readNetworkInterfaceDetails()
     }
 
     m_netInterfaces = list;
+}
+
+void SystemStatsBackend::readLoadAverage()
+{
+    const QString loadAvgRaw = Backend::readTextFile(QStringLiteral("/proc/loadavg"));
+    const QStringList parts = loadAvgRaw.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    if (parts.size() < 3) {
+        return;
+    }
+
+    m_loadAverage = QStringLiteral("%1 / %2 / %3").arg(parts.at(0), parts.at(1), parts.at(2));
 }

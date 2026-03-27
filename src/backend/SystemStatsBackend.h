@@ -30,6 +30,7 @@ public:
     QVariantList netTxHistory() const;
     QString netRxSpeed() const;
     QString netTxSpeed() const;
+    QString loadAverage() const;
     QVariantList netInterfaces() const;
 
 signals:
@@ -44,6 +45,7 @@ private:
     void readBatteryInfo();
     void readNetworkInfo();
     void readNetworkInterfaceDetails();
+    void readLoadAverage();
 
     double m_cpuTotal = 0;
     QVariantList m_cpuCores;
@@ -67,6 +69,7 @@ private:
     QVariantList m_netTxHistory;
     QString m_netRxSpeed = "0 B/s";
     QString m_netTxSpeed = "0 B/s";
+    QString m_loadAverage = "0.00 / 0.00 / 0.00";
     QVariantList m_netInterfaces;
     QString m_batteryPath;
 };

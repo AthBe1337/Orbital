@@ -127,6 +127,11 @@ QString SystemMonitor::netTxSpeed() const
     return m_statsBackend->netTxSpeed();
 }
 
+QString SystemMonitor::loadAverage() const
+{
+    return m_statsBackend->loadAverage();
+}
+
 int SystemMonitor::brightness() const
 {
     return m_displayBackend->brightness();
