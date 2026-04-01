@@ -187,7 +187,7 @@ void DisplayBackend::onVolumeInputEvent()
         }
 
         if (ev.value == 1 && m_volumeUpPressed && m_volumeDownPressed
-            && !m_screenshotComboTriggered) {
+            && !m_screenshotComboTriggered && m_isScreenOn) {
             m_screenshotComboTriggered = true;
             qDebug() << "Volume combo detected. Requesting screenshot.";
             emit screenshotRequested();
