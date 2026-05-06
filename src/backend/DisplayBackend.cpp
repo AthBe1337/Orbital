@@ -29,6 +29,18 @@ QString environmentOrFallback(const char *name, const QString &fallback)
     return QString::fromLocal8Bit(value);
 }
 
+QStringList parsePathList(const QString &combined)
+{
+    QStringList paths;
+    for (const QString &p : combined.split(QLatin1Char(','), Qt::SkipEmptyParts)) {
+        const QString trimmed = p.trimmed();
+        if (!trimmed.isEmpty() && !paths.contains(trimmed)) {
+            paths.append(trimmed);
+        }
+    }
+    return paths;
+}
+
 QString volumeKeyName(unsigned short keyCode)
 {
     switch (keyCode) {
@@ -48,9 +60,12 @@ DisplayBackend::DisplayBackend(QObject *parent)
 {
     m_touchInhibitPath = environmentOrFallback("ORBITAL_TOUCH_INHIBIT_PATH",
                                                QString::fromLatin1(kDefaultTouchInhibitPath));
-    m_powerKeyPath = environmentOrFallback("ORBITAL_POWER_KEY_PATH",
-                                           QString::fromLatin1(kDefaultPowerKeyPath));
-    m_volumeKeyPath = environmentOrFallback("ORBITAL_VOLUME_KEY_PATH", m_powerKeyPath);
+    const QString rawPower = environmentOrFallback("ORBITAL_POWER_KEY_PATH",
+                                                   QString::fromLatin1(kDefaultPowerKeyPath));
+    m_powerKeyPaths = parsePathList(rawPower);
+
+    const QString rawVolume = environmentOrFallback("ORBITAL_VOLUME_KEY_PATH", rawPower);
+    m_volumeKeyPaths = parsePathList(rawVolume);
 
     findBacklightPath();
     initPowerKeyMonitor();
@@ -59,12 +74,16 @@ DisplayBackend::DisplayBackend(QObject *parent)
 
 DisplayBackend::~DisplayBackend()
 {
-    if (m_powerInputFd >= 0) {
-        close(m_powerInputFd);
+    for (int fd : m_powerInputFds) {
+        if (fd >= 0) {
+            close(fd);
+        }
     }
 
-    if (m_volumeInputFd >= 0) {
-        close(m_volumeInputFd);
+    for (int fd : m_volumeInputFds) {
+        if (fd >= 0) {
+            close(fd);
+        }
     }
 }
 
@@ -112,10 +131,10 @@ void DisplayBackend::setBrightness(int percent)
     }
 }
 
-void DisplayBackend::onPowerInputEvent()
+void DisplayBackend::onPowerInputEvent(int fd)
 {
     struct input_event ev;
-    while (read(m_powerInputFd, &ev, sizeof(ev)) > 0) {
+    while (read(fd, &ev, sizeof(ev)) > 0) {
         if (ev.type != EV_KEY || ev.code != KEY_POWER) {
             continue;
         }
@@ -137,14 +156,6 @@ void DisplayBackend::onPowerInputEvent()
 
 void DisplayBackend::initPowerKeyMonitor()
 {
-    m_powerInputFd = open(m_powerKeyPath.toStdString().c_str(), O_RDONLY | O_NONBLOCK);
-
-    if (m_powerInputFd < 0) {
-        qWarning() << "Failed to open power key input device:" << m_powerKeyPath
-                   << "Check permissions (sudo or udev)!";
-        return;
-    }
-
     m_longPressTimer = new QTimer(this);
     m_longPressTimer->setSingleShot(true);
     m_longPressTimer->setInterval(1500);
@@ -154,16 +165,30 @@ void DisplayBackend::initPowerKeyMonitor()
         QCoreApplication::exit(42);
     });
 
-    m_powerNotifier = new QSocketNotifier(m_powerInputFd, QSocketNotifier::Read, this);
-    connect(m_powerNotifier, &QSocketNotifier::activated, this, &DisplayBackend::onPowerInputEvent);
+    for (const QString &path : m_powerKeyPaths) {
+        const int fd = open(path.toStdString().c_str(), O_RDONLY | O_NONBLOCK);
+        if (fd < 0) {
+            qWarning() << "Failed to open power key input device:" << path
+                       << "Check permissions (sudo or udev)!";
+            continue;
+        }
 
-    qDebug() << "Listening for Power Key on" << m_powerKeyPath;
+        auto *notifier = new QSocketNotifier(fd, QSocketNotifier::Read, this);
+        connect(notifier, &QSocketNotifier::activated, this, [this, fd]() {
+            onPowerInputEvent(fd);
+        });
+
+        m_powerInputFds.append(fd);
+        m_powerNotifiers.append(notifier);
+
+        qDebug() << "Listening for Power Key on" << path;
+    }
 }
 
-void DisplayBackend::onVolumeInputEvent()
+void DisplayBackend::onVolumeInputEvent(int fd)
 {
     struct input_event ev;
-    while (read(m_volumeInputFd, &ev, sizeof(ev)) > 0) {
+    while (read(fd, &ev, sizeof(ev)) > 0) {
         if (ev.type != EV_KEY) {
             continue;
         }
@@ -201,18 +226,24 @@ void DisplayBackend::onVolumeInputEvent()
 
 void DisplayBackend::initVolumeKeyMonitor()
 {
-    m_volumeInputFd = open(m_volumeKeyPath.toStdString().c_str(), O_RDONLY | O_NONBLOCK);
+    for (const QString &path : m_volumeKeyPaths) {
+        const int fd = open(path.toStdString().c_str(), O_RDONLY | O_NONBLOCK);
+        if (fd < 0) {
+            qWarning() << "Failed to open volume key input device:" << path
+                       << "Check permissions (sudo or udev)!";
+            continue;
+        }
 
-    if (m_volumeInputFd < 0) {
-        qWarning() << "Failed to open volume key input device:" << m_volumeKeyPath
-                   << "Check permissions (sudo or udev)!";
-        return;
+        auto *notifier = new QSocketNotifier(fd, QSocketNotifier::Read, this);
+        connect(notifier, &QSocketNotifier::activated, this, [this, fd]() {
+            onVolumeInputEvent(fd);
+        });
+
+        m_volumeInputFds.append(fd);
+        m_volumeNotifiers.append(notifier);
+
+        qDebug() << "Listening for Volume Keys on" << path;
     }
-
-    m_volumeNotifier = new QSocketNotifier(m_volumeInputFd, QSocketNotifier::Read, this);
-    connect(m_volumeNotifier, &QSocketNotifier::activated, this, &DisplayBackend::onVolumeInputEvent);
-
-    qDebug() << "Listening for Volume Keys on" << m_volumeKeyPath;
 }
 
 void DisplayBackend::toggleScreen()

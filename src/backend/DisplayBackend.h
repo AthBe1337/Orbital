@@ -1,7 +1,9 @@
 #pragma once
 
+#include <QList>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 
 class QSocketNotifier;
 class QTimer;
@@ -27,8 +29,8 @@ signals:
     void screenshotRequested();
 
 private slots:
-    void onPowerInputEvent();
-    void onVolumeInputEvent();
+    void onPowerInputEvent(int fd);
+    void onVolumeInputEvent(int fd);
 
 private:
     void initPowerKeyMonitor();
@@ -39,15 +41,15 @@ private:
 
     QString m_backlightPath;
     QString m_touchInhibitPath;
-    QString m_powerKeyPath;
-    QString m_volumeKeyPath;
+    QStringList m_powerKeyPaths;
+    QStringList m_volumeKeyPaths;
     int m_maxBrightness = 0;
     int m_brightnessPercent = 50;
 
-    int m_powerInputFd = -1;
-    int m_volumeInputFd = -1;
-    QSocketNotifier *m_powerNotifier = nullptr;
-    QSocketNotifier *m_volumeNotifier = nullptr;
+    QList<int> m_powerInputFds;
+    QList<int> m_volumeInputFds;
+    QList<QSocketNotifier *> m_powerNotifiers;
+    QList<QSocketNotifier *> m_volumeNotifiers;
     bool m_isScreenOn = true;
     QTimer *m_longPressTimer = nullptr;
     bool m_volumeUpPressed = false;
