@@ -6,8 +6,10 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QDebug>
+#include <QGuiApplication>
 #include <QSocketNotifier>
 #include <QTimer>
+#include <QWindow>
 
 #include <fcntl.h>
 #include <linux/input.h>
@@ -288,6 +290,13 @@ void DisplayBackend::toggleScreen()
         if (!Backend::writeTextFile(m_touchInhibitPath, "0")) {
             qDebug() << "Failed to write to" << m_touchInhibitPath;
         }
+
+        QTimer::singleShot(50, this, []() {
+            const auto windows = QGuiApplication::allWindows();
+            for (QWindow *win : windows) {
+                win->requestUpdate();
+            }
+        });
     } else {
         qDebug() << "Screen OFF";
         if (!Backend::writeTextFile(blPowerPath, "1")) {
