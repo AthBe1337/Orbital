@@ -13,6 +13,7 @@
 #include <linux/input.h>
 #include <unistd.h>
 
+#include <cerrno>
 #include <cstring>
 
 namespace {
@@ -332,18 +333,35 @@ void DisplayBackend::readBrightness()
 
 void DisplayBackend::initDrmPanel()
 {
-    const QString drmDev = environmentOrFallback("ORBITAL_DRM_DEVICE",
-                                                  QStringLiteral("/dev/dri/card0"));
+    const QByteArray envDev = qgetenv("ORBITAL_DRM_DEVICE").trimmed();
+    if (!envDev.isEmpty()) {
+        tryOpenDrmDevice(QString::fromLocal8Bit(envDev));
+        return;
+    }
 
+    QDir driDir("/dev/dri");
+    const QStringList cards = driDir.entryList({"card*"}, QDir::System);
+    for (const QString &name : cards) {
+        tryOpenDrmDevice(driDir.filePath(name));
+        if (m_drmConnectorId != 0) {
+            return;
+        }
+    }
+
+    qDebug() << "No DPMS-capable DRM connector found on any card";
+}
+
+void DisplayBackend::tryOpenDrmDevice(const QString &drmDev)
+{
     m_drmFd = open(drmDev.toStdString().c_str(), O_RDWR | O_NONBLOCK);
     if (m_drmFd < 0) {
-        qDebug() << "Cannot open DRM device:" << drmDev << "- panel DPMS unavailable";
+        qDebug() << "Cannot open DRM device:" << drmDev << "-" << strerror(errno);
         return;
     }
 
     drmModeRes *res = drmModeGetResources(m_drmFd);
     if (!res) {
-        qDebug() << "Cannot get DRM resources - panel DPMS unavailable";
+        qDebug() << "Cannot get DRM resources from" << drmDev;
         close(m_drmFd);
         m_drmFd = -1;
         return;
@@ -375,9 +393,11 @@ void DisplayBackend::initDrmPanel()
 
                 m_drmMasterFd = findDrmMasterFd(drmDev);
                 if (m_drmMasterFd >= 0) {
-                    qDebug() << "DRM panel DPMS control ready on connector" << m_drmConnectorId;
+                    qDebug() << "DRM panel DPMS control ready on" << drmDev
+                             << "connector" << m_drmConnectorId;
                 } else {
-                    qDebug() << "DRM connector found but no master fd - DPMS will fail";
+                    qDebug() << "DRM connector found on" << drmDev
+                             << "but no master fd - DPMS will fail";
                 }
                 return;
             }
@@ -391,7 +411,8 @@ void DisplayBackend::initDrmPanel()
     drmModeFreeResources(res);
     close(m_drmFd);
     m_drmFd = -1;
-    qDebug() << "No DPMS-capable connector found - panel DPMS unavailable";
+    m_drmConnectorId = 0;
+    m_drmDpmsPropId = 0;
 }
 
 int DisplayBackend::findDrmMasterFd(const QString &drmDevPath)

@@ -42,6 +42,7 @@ private:
     void findBacklightPath();
     void readBrightness();
     void initDrmPanel();
+    void tryOpenDrmDevice(const QString &drmDev);
     int findDrmMasterFd(const QString &drmDevPath);
     void setDpms(int mode);
 
