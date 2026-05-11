@@ -5,6 +5,9 @@
 #include <QString>
 #include <QStringList>
 
+#include <xf86drm.h>
+#include <xf86drmMode.h>
+
 class QSocketNotifier;
 class QTimer;
 
@@ -38,6 +41,9 @@ private:
     void toggleScreen();
     void findBacklightPath();
     void readBrightness();
+    void initDrmPanel();
+    int findDrmMasterFd(const QString &drmDevPath);
+    void setDpms(int mode);
 
     QString m_backlightPath;
     QString m_touchInhibitPath;
@@ -55,4 +61,9 @@ private:
     bool m_volumeUpPressed = false;
     bool m_volumeDownPressed = false;
     bool m_screenshotComboTriggered = false;
+
+    int m_drmFd = -1;
+    int m_drmMasterFd = -1;
+    uint32_t m_drmConnectorId = 0;
+    uint32_t m_drmDpmsPropId = 0;
 };

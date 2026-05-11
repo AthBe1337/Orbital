@@ -13,6 +13,8 @@
 #include <linux/input.h>
 #include <unistd.h>
 
+#include <cstring>
+
 namespace {
 
 constexpr auto kDefaultPowerKeyPath = "/dev/input/event0";
@@ -68,6 +70,7 @@ DisplayBackend::DisplayBackend(QObject *parent)
     m_volumeKeyPaths = parsePathList(rawVolume);
 
     findBacklightPath();
+    initDrmPanel();
     initPowerKeyMonitor();
     initVolumeKeyMonitor();
 }
@@ -84,6 +87,14 @@ DisplayBackend::~DisplayBackend()
         if (fd >= 0) {
             close(fd);
         }
+    }
+
+    if (m_drmFd >= 0) {
+        close(m_drmFd);
+    }
+
+    if (m_drmMasterFd >= 0) {
+        close(m_drmMasterFd);
     }
 }
 
@@ -258,9 +269,7 @@ void DisplayBackend::toggleScreen()
 
     if (m_isScreenOn) {
         qDebug() << "Screen ON";
-        if (!Backend::writeTextFile(m_touchInhibitPath, "0")) {
-            qDebug() << "Failed to write to" << m_touchInhibitPath;
-        }
+        setDpms(DRM_MODE_DPMS_ON);
 
         if (!Backend::writeTextFile(blPowerPath, "0")) {
             qDebug() << "Failed to write to" << blPowerPath;
@@ -274,6 +283,10 @@ void DisplayBackend::toggleScreen()
         if (!Backend::writeTextFile(m_backlightPath + "/brightness", QString::number(actualVal))) {
             qDebug() << "Failed to write to" << m_backlightPath + "/brightness";
         }
+
+        if (!Backend::writeTextFile(m_touchInhibitPath, "0")) {
+            qDebug() << "Failed to write to" << m_touchInhibitPath;
+        }
     } else {
         qDebug() << "Screen OFF";
         if (!Backend::writeTextFile(blPowerPath, "1")) {
@@ -283,6 +296,8 @@ void DisplayBackend::toggleScreen()
         if (!Backend::writeTextFile(m_touchInhibitPath, "1")) {
             qDebug() << "Failed to write to" << m_touchInhibitPath;
         }
+
+        setDpms(DRM_MODE_DPMS_OFF);
     }
 
     emit screenStateChanged();
@@ -312,5 +327,113 @@ void DisplayBackend::readBrightness()
     if (percent != m_brightnessPercent) {
         m_brightnessPercent = percent;
         emit brightnessChanged();
+    }
+}
+
+void DisplayBackend::initDrmPanel()
+{
+    const QString drmDev = environmentOrFallback("ORBITAL_DRM_DEVICE",
+                                                  QStringLiteral("/dev/dri/card0"));
+
+    m_drmFd = open(drmDev.toStdString().c_str(), O_RDWR | O_NONBLOCK);
+    if (m_drmFd < 0) {
+        qDebug() << "Cannot open DRM device:" << drmDev << "- panel DPMS unavailable";
+        return;
+    }
+
+    drmModeRes *res = drmModeGetResources(m_drmFd);
+    if (!res) {
+        qDebug() << "Cannot get DRM resources - panel DPMS unavailable";
+        close(m_drmFd);
+        m_drmFd = -1;
+        return;
+    }
+
+    for (int i = 0; i < res->count_connectors; i++) {
+        drmModeConnector *conn = drmModeGetConnector(m_drmFd, res->connectors[i]);
+        if (!conn) {
+            continue;
+        }
+
+        if (conn->connection != DRM_MODE_CONNECTED) {
+            drmModeFreeConnector(conn);
+            continue;
+        }
+
+        for (int j = 0; j < conn->count_props; j++) {
+            drmModePropertyRes *prop = drmModeGetProperty(m_drmFd, conn->props[j]);
+            if (!prop) {
+                continue;
+            }
+
+            if (std::strcmp(prop->name, "DPMS") == 0) {
+                m_drmConnectorId = conn->connector_id;
+                m_drmDpmsPropId = prop->prop_id;
+                drmModeFreeProperty(prop);
+                drmModeFreeConnector(conn);
+                drmModeFreeResources(res);
+
+                m_drmMasterFd = findDrmMasterFd(drmDev);
+                if (m_drmMasterFd >= 0) {
+                    qDebug() << "DRM panel DPMS control ready on connector" << m_drmConnectorId;
+                } else {
+                    qDebug() << "DRM connector found but no master fd - DPMS will fail";
+                }
+                return;
+            }
+
+            drmModeFreeProperty(prop);
+        }
+
+        drmModeFreeConnector(conn);
+    }
+
+    drmModeFreeResources(res);
+    close(m_drmFd);
+    m_drmFd = -1;
+    qDebug() << "No DPMS-capable connector found - panel DPMS unavailable";
+}
+
+int DisplayBackend::findDrmMasterFd(const QString &drmDevPath)
+{
+    QDir fdDir("/proc/self/fd");
+    const QStringList entries = fdDir.entryList(QDir::Files | QDir::NoDotAndDotDot);
+
+    for (const QString &entry : entries) {
+        const QString linkPath = fdDir.filePath(entry);
+        char buf[256];
+        const ssize_t len = readlink(linkPath.toStdString().c_str(), buf, sizeof(buf) - 1);
+        if (len < 0) {
+            continue;
+        }
+        buf[len] = '\0';
+
+        if (drmDevPath == QString::fromLocal8Bit(buf)) {
+            bool ok = false;
+            const int fd = entry.toInt(&ok);
+            if (ok && fd != m_drmFd) {
+                const int dupFd = dup(fd);
+                if (dupFd >= 0) {
+                    qDebug() << "Found DRM master fd:" << fd << "(dup:" << dupFd << ")";
+                    return dupFd;
+                }
+            }
+        }
+    }
+
+    return -1;
+}
+
+void DisplayBackend::setDpms(int mode)
+{
+    const int fd = (m_drmMasterFd >= 0) ? m_drmMasterFd : m_drmFd;
+    if (fd < 0 || m_drmConnectorId == 0 || m_drmDpmsPropId == 0) {
+        return;
+    }
+
+    const int ret = drmModeConnectorSetProperty(fd, m_drmConnectorId,
+                                                 m_drmDpmsPropId, mode);
+    if (ret < 0) {
+        qDebug() << "Failed to set DPMS to" << mode << "errno:" << errno;
     }
 }

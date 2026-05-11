@@ -12,6 +12,8 @@ set(CMAKE_AUTOUIC ON)
 
 # 查找 Qt 库
 find_package(Qt6 COMPONENTS Quick Core Network REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBDRM REQUIRED libdrm)
 
 # Apply Qt policies only when the current Qt version supports them.
 if(COMMAND qt_policy)
@@ -78,8 +80,10 @@ qt_add_executable(appOrbital
 
 target_compile_definitions(appOrbital
     PRIVATE
-    GIT_COMMIT_HASH="${GIT_HASH}" 
+    GIT_COMMIT_HASH="${GIT_HASH}"
 )
+
+target_include_directories(appOrbital PRIVATE ${LIBDRM_INCLUDE_DIRS})
 
 set_target_properties(appOrbital PROPERTIES
     OUTPUT_NAME "Orbital"
@@ -136,7 +140,7 @@ qt_add_qml_module(appOrbital
 
 # 链接库
 target_link_libraries(appOrbital
-    PRIVATE Qt6::Quick Qt6::Core Qt6::Network
+    PRIVATE Qt6::Quick Qt6::Core Qt6::Network ${LIBDRM_LIBRARIES}
 )
 
 find_library(UTIL_LIBRARY util)
