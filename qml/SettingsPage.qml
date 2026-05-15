@@ -30,6 +30,116 @@ Rectangle {
         return "Manual"
     }
 
+    function screenOffMethodLabel(method) {
+        if (method === "backlight")
+            return "Backlight only"
+        return "DRM DPMS"
+    }
+
+    Popup {
+        id: screenOffMethodPopup
+        parent: Overlay.overlay
+        x: Math.round((parent.width - width) / 2)
+        y: Math.round((parent.height - height) / 2)
+        width: parent.width * 0.85
+        modal: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        Overlay.modal: Rectangle { color: "#aa000000" }
+
+        background: Rectangle {
+            color: "#1e1e1e"
+            radius: 15
+            border.color: "#333333"
+            border.width: 1
+        }
+
+        contentItem: ColumnLayout {
+            spacing: 14
+
+            Text {
+                text: "Screen Off Method"
+                color: "white"
+                font.pixelSize: 18
+                font.bold: true
+                Layout.alignment: Qt.AlignHCenter
+                Layout.topMargin: 6
+            }
+
+            Text {
+                text: "Some devices freeze when toggling DRM DPMS. Switch to Backlight only if you experience lockups on screen off."
+                color: "#aaa"
+                font.pixelSize: 12
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+                Layout.leftMargin: 16
+                Layout.rightMargin: 16
+            }
+
+            Repeater {
+                model: [
+                    { id: "dpms",      label: "DRM DPMS",      detail: "Recommended. Uses kernel DPMS via DRM connector plus backlight off." },
+                    { id: "backlight", label: "Backlight only", detail: "Compatibility mode. Skips DRM DPMS; only turns the backlight off." }
+                ]
+
+                delegate: Rectangle {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 16
+                    Layout.rightMargin: 16
+                    height: Math.max(optCol.implicitHeight + 28, 88)
+                    radius: 10
+                    color: optTap.pressed ? "#2a2a2a" : "#252525"
+                    border.color: root.sysMon && root.sysMon.screenOffMethod === modelData.id ? "#0079DB" : "#333"
+                    border.width: 1
+
+                    ColumnLayout {
+                        id: optCol
+                        anchors.fill: parent
+                        anchors.margins: 14
+                        spacing: 6
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text {
+                                text: modelData.label
+                                color: "white"
+                                font.pixelSize: 15
+                                font.bold: true
+                                Layout.fillWidth: true
+                            }
+                            Text {
+                                visible: root.sysMon && root.sysMon.screenOffMethod === modelData.id
+                                text: "✓"
+                                color: "#0079DB"
+                                font.pixelSize: 16
+                                font.bold: true
+                            }
+                        }
+
+                        Text {
+                            text: modelData.detail
+                            color: "#888"
+                            font.pixelSize: 11
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+                    }
+
+                    TapHandler {
+                        id: optTap
+                        onTapped: {
+                            if (root.sysMon)
+                                root.sysMon.screenOffMethod = modelData.id
+                            screenOffMethodPopup.close()
+                        }
+                    }
+                }
+            }
+
+            Item { Layout.preferredHeight: 6 }
+        }
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
@@ -159,6 +269,46 @@ Rectangle {
                                 border.color: "#0079DB"
                             }
                         }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 20
+                    Layout.rightMargin: 20
+                    height: 60
+                    color: tapScreenOff.pressed ? "#2a2a2a" : "#1e1e1e"
+                    radius: 12
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: 15
+
+                        IconImage {
+                            source: "qrc:/MyDesktop/Backend/assets/screen-off.svg"
+                            sourceSize: Qt.size(24, 24)
+                            color: "white"
+                        }
+
+                        Text {
+                            text: "Screen Off Method"
+                            color: "white"
+                            font.pixelSize: 16
+                            font.bold: true
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 10
+                        }
+
+                        Text {
+                            text: root.sysMon ? root.screenOffMethodLabel(root.sysMon.screenOffMethod) : ""
+                            color: "#888"
+                            font.pixelSize: 12
+                        }
+                    }
+
+                    TapHandler {
+                        id: tapScreenOff
+                        onTapped: screenOffMethodPopup.open()
                     }
                 }
 

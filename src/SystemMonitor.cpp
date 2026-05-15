@@ -28,6 +28,8 @@ SystemMonitor::SystemMonitor(QObject *parent)
             this, &SystemMonitor::brightnessChanged);
     connect(m_displayBackend, &DisplayBackend::screenStateChanged,
             this, &SystemMonitor::screenStateChanged);
+    connect(m_displayBackend, &DisplayBackend::screenOffMethodChanged,
+            this, &SystemMonitor::screenOffMethodChanged);
     connect(m_displayBackend, &DisplayBackend::volumeKeyEvent,
             this, &SystemMonitor::volumeKeyEvent);
     connect(m_displayBackend, &DisplayBackend::screenshotRequested,
@@ -145,6 +147,16 @@ QVariantList SystemMonitor::netInterfaces() const
 bool SystemMonitor::isScreenOn() const
 {
     return m_displayBackend->isScreenOn();
+}
+
+QString SystemMonitor::screenOffMethod() const
+{
+    return m_displayBackend->screenOffMethod();
+}
+
+void SystemMonitor::setScreenOffMethod(const QString &method)
+{
+    m_displayBackend->setScreenOffMethod(method);
 }
 
 QVariantList SystemMonitor::wifiList() const

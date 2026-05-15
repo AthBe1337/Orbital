@@ -34,6 +34,7 @@ class SystemMonitor : public QObject
     Q_PROPERTY(int brightness READ brightness WRITE setBrightness NOTIFY brightnessChanged)
     Q_PROPERTY(QVariantList netInterfaces READ netInterfaces NOTIFY statsChanged)
     Q_PROPERTY(bool isScreenOn READ isScreenOn NOTIFY screenStateChanged)
+    Q_PROPERTY(QString screenOffMethod READ screenOffMethod WRITE setScreenOffMethod NOTIFY screenOffMethodChanged)
     Q_PROPERTY(QVariantList wifiList READ wifiList NOTIFY wifiListChanged)
     Q_PROPERTY(bool wifiEnabled READ wifiEnabled WRITE setWifiEnabled NOTIFY wifiEnabledChanged)
     Q_PROPERTY(QVariantMap currentWifiDetails READ currentWifiDetails NOTIFY currentWifiDetailsChanged)
@@ -65,6 +66,8 @@ public:
     int brightness() const;
     QVariantList netInterfaces() const;
     bool isScreenOn() const;
+    QString screenOffMethod() const;
+    void setScreenOffMethod(const QString &method);
     QVariantList wifiList() const;
     bool wifiEnabled() const;
     QVariantMap currentWifiDetails() const;
@@ -88,6 +91,7 @@ signals:
     void statsChanged();
     void brightnessChanged();
     void screenStateChanged();
+    void screenOffMethodChanged();
     void wifiListChanged();
     void wifiEnabledChanged();
     void currentWifiDetailsChanged();

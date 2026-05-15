@@ -136,6 +136,7 @@ qt_add_qml_module(appOrbital
         assets/shift-filled.svg
         assets/backspace.svg
         assets/terminal.svg
+        assets/screen-off.svg
 )
 
 # 链接库

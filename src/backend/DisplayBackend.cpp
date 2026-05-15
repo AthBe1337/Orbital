@@ -7,6 +7,7 @@
 #include <QDir>
 #include <QDebug>
 #include <QGuiApplication>
+#include <QSettings>
 #include <QSocketNotifier>
 #include <QTimer>
 #include <QWindow>
@@ -23,6 +24,10 @@ namespace {
 constexpr auto kDefaultPowerKeyPath = "/dev/input/event0";
 constexpr auto kDefaultTouchInhibitPath =
     "/sys/devices/platform/soc@0/ac0000.geniqup/a90000.i2c/i2c-12/12-0020/rmi4-00/input/input5/inhibited";
+
+constexpr auto kScreenOffMethodKey = "display/screenOffMethod";
+constexpr auto kScreenOffMethodDpms = "dpms";
+constexpr auto kScreenOffMethodBacklight = "backlight";
 
 QString environmentOrFallback(const char *name, const QString &fallback)
 {
@@ -72,6 +77,13 @@ DisplayBackend::DisplayBackend(QObject *parent)
     const QString rawVolume = environmentOrFallback("ORBITAL_VOLUME_KEY_PATH", rawPower);
     m_volumeKeyPaths = parsePathList(rawVolume);
 
+    QSettings settings;
+    const QString stored = settings.value(QLatin1String(kScreenOffMethodKey),
+                                          QLatin1String(kScreenOffMethodDpms)).toString();
+    m_screenOffMethod = (stored == QLatin1String(kScreenOffMethodBacklight))
+        ? QLatin1String(kScreenOffMethodBacklight)
+        : QLatin1String(kScreenOffMethodDpms);
+
     findBacklightPath();
     initDrmPanel();
     initPowerKeyMonitor();
@@ -109,6 +121,29 @@ int DisplayBackend::brightness() const
 bool DisplayBackend::isScreenOn() const
 {
     return m_isScreenOn;
+}
+
+QString DisplayBackend::screenOffMethod() const
+{
+    return m_screenOffMethod;
+}
+
+void DisplayBackend::setScreenOffMethod(const QString &method)
+{
+    const QString normalized = (method == QLatin1String(kScreenOffMethodBacklight))
+        ? QLatin1String(kScreenOffMethodBacklight)
+        : QLatin1String(kScreenOffMethodDpms);
+
+    if (normalized == m_screenOffMethod) {
+        return;
+    }
+
+    m_screenOffMethod = normalized;
+
+    QSettings settings;
+    settings.setValue(QLatin1String(kScreenOffMethodKey), m_screenOffMethod);
+
+    emit screenOffMethodChanged();
 }
 
 void DisplayBackend::setBrightness(int percent)
@@ -269,10 +304,13 @@ void DisplayBackend::toggleScreen()
     }
 
     const QString blPowerPath = m_backlightPath + "/bl_power";
+    const bool useDpms = (m_screenOffMethod == QLatin1String(kScreenOffMethodDpms));
 
     if (m_isScreenOn) {
-        qDebug() << "Screen ON";
-        setDpms(DRM_MODE_DPMS_ON);
+        qDebug() << "Screen ON (method:" << m_screenOffMethod << ")";
+        if (useDpms) {
+            setDpms(DRM_MODE_DPMS_ON);
+        }
 
         if (!Backend::writeTextFile(blPowerPath, "0")) {
             qDebug() << "Failed to write to" << blPowerPath;
@@ -298,7 +336,7 @@ void DisplayBackend::toggleScreen()
             }
         });
     } else {
-        qDebug() << "Screen OFF";
+        qDebug() << "Screen OFF (method:" << m_screenOffMethod << ")";
         if (!Backend::writeTextFile(blPowerPath, "1")) {
             qDebug() << "Failed to write to" << blPowerPath;
         }
@@ -307,7 +345,9 @@ void DisplayBackend::toggleScreen()
             qDebug() << "Failed to write to" << m_touchInhibitPath;
         }
 
-        setDpms(DRM_MODE_DPMS_OFF);
+        if (useDpms) {
+            setDpms(DRM_MODE_DPMS_OFF);
+        }
     }
 
     emit screenStateChanged();

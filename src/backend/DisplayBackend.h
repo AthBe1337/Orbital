@@ -21,6 +21,8 @@ public:
 
     int brightness() const;
     bool isScreenOn() const;
+    QString screenOffMethod() const;
+    void setScreenOffMethod(const QString &method);
 
 public slots:
     void setBrightness(int percent);
@@ -28,6 +30,7 @@ public slots:
 signals:
     void brightnessChanged();
     void screenStateChanged();
+    void screenOffMethodChanged();
     void volumeKeyEvent(QString key, int value);
     void screenshotRequested();
 
@@ -67,4 +70,6 @@ private:
     int m_drmMasterFd = -1;
     uint32_t m_drmConnectorId = 0;
     uint32_t m_drmDpmsPropId = 0;
+
+    QString m_screenOffMethod;
 };
