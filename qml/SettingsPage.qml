@@ -433,15 +433,61 @@ Rectangle {
                     Layout.leftMargin: 20
                     Layout.rightMargin: 20
                     height: 60
+                    color: tapPlugins.pressed ? "#2a2a2a" : "#1e1e1e"
+                    radius: 12
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: 15
+
+                        IconImage {
+                            source: "qrc:/MyDesktop/Backend/assets/plug.svg"
+                            sourceSize: Qt.size(24, 24)
+                            color: "white"
+                        }
+
+                        Text {
+                            text: "Plugins"
+                            color: "white"
+                            font.pixelSize: 16
+                            font.bold: true
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 10
+                        }
+
+                        Text {
+                            text: root.sysMon && root.sysMon.pluginManager
+                                  ? root.sysMon.pluginManager.plugins.length + " enabled"
+                                  : ""
+                            color: "#888"
+                            font.pixelSize: 12
+                        }
+                    }
+
+                    TapHandler {
+                        id: tapPlugins
+                        onTapped: {
+                            stackView.push("qrc:/MyDesktop/Backend/qml/PluginsPage.qml", {
+                                "backend": root.sysMon
+                            })
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 20
+                    Layout.rightMargin: 20
+                    height: 60
                     color: tapAbout.pressed ? "#2a2a2a" : "#1e1e1e"
                     radius: 12
                     RowLayout {
                         anchors.fill: parent; anchors.margins: 15
-                        IconImage { 
+                        IconImage {
                             source: "qrc:/MyDesktop/Backend/assets/info.svg"
-                            sourceSize: Qt.size(24, 24); color: "white" 
+                            sourceSize: Qt.size(24, 24); color: "white"
                         }
-                        Text { 
+                        Text {
                             text: "About"
                             color: "white"; font.pixelSize: 16; font.bold: true
                             Layout.fillWidth: true; Layout.leftMargin: 10

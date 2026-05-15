@@ -6,9 +6,11 @@
 #include "backend/SystemHelpers.h"
 #include "backend/SystemStatsBackend.h"
 #include "backend/WifiBackend.h"
+#include "plugins/PluginManager.h"
 
 #include <QProcess>
 #include <QTimer>
+#include <QUrl>
 
 SystemMonitor::SystemMonitor(QObject *parent)
     : QObject(parent)
@@ -17,8 +19,16 @@ SystemMonitor::SystemMonitor(QObject *parent)
     , m_ledBackend(new LedBackend(this))
     , m_systemDetailsBackend(new SystemDetailsBackend(this))
     , m_wifiBackend(new WifiBackend(this))
+    , m_pluginManager(new PluginManager(this))
     , m_timer(new QTimer(this))
 {
+    m_pluginManager->addRoot(QUrl(QStringLiteral("qrc:/MyDesktop/Backend/plugins/")));
+    const QByteArray devRoot = qgetenv("ORBITAL_PLUGIN_DIR");
+    if (!devRoot.isEmpty()) {
+        m_pluginManager->addRoot(QUrl::fromLocalFile(QString::fromLocal8Bit(devRoot)));
+    }
+    m_pluginManager->scan();
+
     connect(m_statsBackend, &SystemStatsBackend::statsUpdated, this, [this]() {
         m_wifiBackend->setNetworkInterfaces(m_statsBackend->netInterfaces());
         emit statsChanged();
@@ -192,6 +202,11 @@ QObject *SystemMonitor::ledBackend() const
 QObject *SystemMonitor::systemDetailsBackend() const
 {
     return m_systemDetailsBackend;
+}
+
+QObject *SystemMonitor::pluginManager() const
+{
+    return m_pluginManager;
 }
 
 void SystemMonitor::setWifiEnabled(bool enable)

@@ -1,0 +1,7 @@
+{
+  "id": "example-hello",
+  "name": "Hello",
+  "version": "1.0.0",
+  "description": "A minimal plugin used to validate the loader.",
+  "page": "Page.qml"
+}

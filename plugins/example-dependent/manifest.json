@@ -1,0 +1,8 @@
+{
+  "id": "example-dependent",
+  "name": "Greetings",
+  "version": "1.0.0",
+  "description": "Demonstrates a plugin that depends on another plugin.",
+  "page": "Page.qml",
+  "dependencies": ["example-hello"]
+}

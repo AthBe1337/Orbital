@@ -15,6 +15,23 @@ find_package(Qt6 COMPONENTS Quick Core Network REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBDRM REQUIRED libdrm)
 
+# 是否将仓库自带的示例插件编入二进制。默认不编译；开发/演示时显式打开：
+#   cmake -DORBITAL_BUILD_EXAMPLE_PLUGINS=ON ...
+option(ORBITAL_BUILD_EXAMPLE_PLUGINS "Include bundled example plugins in the build" OFF)
+
+set(ORBITAL_EXAMPLE_PLUGIN_RESOURCES "")
+if(ORBITAL_BUILD_EXAMPLE_PLUGINS)
+    list(APPEND ORBITAL_EXAMPLE_PLUGIN_RESOURCES
+        plugins/example-hello/manifest.json
+        plugins/example-hello/Page.qml
+        plugins/example-dependent/manifest.json
+        plugins/example-dependent/Page.qml
+    )
+    message(STATUS "Example plugins: ENABLED")
+else()
+    message(STATUS "Example plugins: disabled (pass -DORBITAL_BUILD_EXAMPLE_PLUGINS=ON to include)")
+endif()
+
 # Apply Qt policies only when the current Qt version supports them.
 if(COMMAND qt_policy)
     if(QT_KNOWN_POLICY_QTP0001)
@@ -76,6 +93,9 @@ qt_add_executable(appOrbital
     src/backend/TerminalLineModel.cpp
     src/backend/TerminalBackend.h
     src/backend/TerminalBackend.cpp
+    src/plugins/PluginInfo.h
+    src/plugins/PluginManager.h
+    src/plugins/PluginManager.cpp
 )
 
 target_compile_definitions(appOrbital
@@ -108,6 +128,7 @@ qt_add_qml_module(appOrbital
         qml/TerminalView.qml
         qml/TerminalPage.qml
         qml/TerminalColorSchemePage.qml
+        qml/PluginsPage.qml
     RESOURCES
         assets/logo.svg
         assets/power.svg
@@ -137,6 +158,8 @@ qt_add_qml_module(appOrbital
         assets/backspace.svg
         assets/terminal.svg
         assets/screen-off.svg
+        assets/plug.svg
+        ${ORBITAL_EXAMPLE_PLUGIN_RESOURCES}
 )
 
 # 链接库

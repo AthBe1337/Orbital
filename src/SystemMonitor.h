@@ -7,6 +7,7 @@
 class QTimer;
 class DisplayBackend;
 class LedBackend;
+class PluginManager;
 class SystemDetailsBackend;
 class SystemStatsBackend;
 class WifiBackend;
@@ -42,6 +43,7 @@ class SystemMonitor : public QObject
     Q_PROPERTY(QString kernelVersion READ kernelVersion CONSTANT)
     Q_PROPERTY(QObject* ledBackend READ ledBackend CONSTANT)
     Q_PROPERTY(QObject* systemDetailsBackend READ systemDetailsBackend CONSTANT)
+    Q_PROPERTY(QObject* pluginManager READ pluginManager CONSTANT)
 
 public:
     explicit SystemMonitor(QObject *parent = nullptr);
@@ -75,6 +77,7 @@ public:
     QString kernelVersion() const;
     QObject *ledBackend() const;
     QObject *systemDetailsBackend() const;
+    QObject *pluginManager() const;
 
     void setWifiEnabled(bool enable);
     void setBrightness(int percent);
@@ -108,5 +111,6 @@ private:
     LedBackend *m_ledBackend = nullptr;
     SystemDetailsBackend *m_systemDetailsBackend = nullptr;
     WifiBackend *m_wifiBackend = nullptr;
+    PluginManager *m_pluginManager = nullptr;
     QTimer *m_timer = nullptr;
 };
