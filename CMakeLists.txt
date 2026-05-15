@@ -161,6 +161,10 @@ qt_add_qml_module(appOrbital
         assets/terminal.svg
         assets/screen-off.svg
         assets/plug.svg
+        plugins/sound/manifest.json
+        plugins/sound/Page.qml
+        plugins/sound/DeviceListPage.qml
+        plugins/sound/CardProfilePage.qml
         ${ORBITAL_EXAMPLE_PLUGIN_RESOURCES}
 )
 
