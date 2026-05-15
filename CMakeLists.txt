@@ -27,10 +27,12 @@ set(ORBITAL_PLUGIN_RESOURCES "")
 if(ORBITAL_BUILD_PLUGINS)
     list(APPEND ORBITAL_PLUGIN_RESOURCES
         plugins/sound/manifest.json
+        plugins/sound/icon.svg
         plugins/sound/Page.qml
         plugins/sound/DeviceListPage.qml
         plugins/sound/CardProfilePage.qml
         plugins/bluetooth/manifest.json
+        plugins/bluetooth/icon.svg
         plugins/bluetooth/Page.qml
         plugins/bluetooth/DeviceDetailPage.qml
     )

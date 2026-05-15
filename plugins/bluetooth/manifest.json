@@ -3,5 +3,6 @@
   "name": "Bluetooth",
   "version": "1.0.0",
   "description": "Bluetooth power, scanning, pairing and device management via bluez.",
+  "icon": "icon.svg",
   "page": "Page.qml"
 }
