@@ -16,7 +16,6 @@ struct PluginInfo
     QUrl rowUrl;
     QUrl pluginDir;
     QStringList dependencies;
-    bool enabled = true;
     bool available = true;
     QStringList missingDependencies;
 
@@ -32,10 +31,8 @@ struct PluginInfo
             {QStringLiteral("rowUrl"), rowUrl},
             {QStringLiteral("pluginDir"), pluginDir},
             {QStringLiteral("dependencies"), dependencies},
-            {QStringLiteral("enabled"), enabled},
             {QStringLiteral("available"), available},
             {QStringLiteral("missingDependencies"), missingDependencies},
-            {QStringLiteral("effectivelyEnabled"), enabled && available},
         };
     }
 };

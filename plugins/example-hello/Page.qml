@@ -7,8 +7,23 @@ Rectangle {
     id: root
     color: "#121212"
 
+    required property var api
     required property string pluginId
     required property string pluginName
+
+    property string uptimeText: ""
+
+    function refreshUptime() {
+        root.api.run("cat", ["/proc/uptime"], function(code, out, err) {
+            if (code === 0) {
+                root.uptimeText = out.trim()
+            } else {
+                root.uptimeText = "error: " + err.trim()
+            }
+        })
+    }
+
+    Component.onCompleted: refreshUptime()
 
     ColumnLayout {
         anchors.fill: parent
@@ -61,21 +76,41 @@ Rectangle {
 
             ColumnLayout {
                 anchors.centerIn: parent
-                spacing: 12
+                width: parent.width - 40
+                spacing: 16
 
                 Text {
                     text: "Hello from " + root.pluginId
                     color: "white"
-                    font.pixelSize: 22
+                    font.pixelSize: 20
                     font.bold: true
                     Layout.alignment: Qt.AlignHCenter
                 }
 
                 Text {
-                    text: "If you can see this, the plugin loader works."
-                    color: "#888"
-                    font.pixelSize: 13
+                    text: "/proc/uptime: " + (root.uptimeText || "(loading)")
+                    color: "#aaa"
+                    font.pixelSize: 12
+                    font.family: "Monospace"
+                    wrapMode: Text.WrapAnywhere
                     Layout.alignment: Qt.AlignHCenter
+                    Layout.fillWidth: true
+                    horizontalAlignment: Text.AlignHCenter
+                }
+
+                RowLayout {
+                    Layout.alignment: Qt.AlignHCenter
+                    spacing: 12
+
+                    Button {
+                        text: "Refresh"
+                        onClicked: root.refreshUptime()
+                    }
+
+                    Button {
+                        text: "Toast"
+                        onClicked: root.api.toast("Hello from " + root.pluginName + "!")
+                    }
                 }
             }
         }

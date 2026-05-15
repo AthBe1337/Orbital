@@ -118,8 +118,10 @@ Rectangle {
                     id: tapRow
                     onTapped: {
                         stackView.push(modelData.pageUrl, {
+                            "api": root.backend.apiFor(modelData.id),
                             "pluginId": modelData.id,
-                            "pluginName": modelData.name
+                            "pluginName": modelData.name,
+                            "pluginDir": modelData.pluginDir
                         })
                     }
                 }

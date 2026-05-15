@@ -9,11 +9,8 @@
 #include <QJsonObject>
 #include <QRegularExpression>
 #include <QSet>
-#include <QSettings>
 
 namespace {
-
-constexpr auto kEnabledKeyFmt = "plugins/%1/enabled";
 
 bool isValidId(const QString &id)
 {
@@ -50,52 +47,11 @@ QVariantList PluginManager::pluginsVariant() const
     QVariantList out;
     out.reserve(m_plugins.size());
     for (const PluginInfo &p : m_plugins) {
-        if (p.enabled && p.available) {
+        if (p.available) {
             out.append(p.toVariantMap());
         }
     }
     return out;
-}
-
-QVariantList PluginManager::allPluginsVariant() const
-{
-    QVariantList out;
-    out.reserve(m_plugins.size());
-    for (const PluginInfo &p : m_plugins) {
-        out.append(p.toVariantMap());
-    }
-    return out;
-}
-
-void PluginManager::setEnabled(const QString &id, bool enabled)
-{
-    bool changed = false;
-    for (PluginInfo &p : m_plugins) {
-        if (p.id == id && p.enabled != enabled) {
-            p.enabled = enabled;
-            changed = true;
-            break;
-        }
-    }
-
-    if (!changed) {
-        return;
-    }
-
-    QSettings settings;
-    settings.setValue(QString::fromLatin1(kEnabledKeyFmt).arg(id), enabled);
-    recomputeAvailability();
-    emit pluginsChanged();
-}
-
-bool PluginManager::isEnabled(const QString &id) const
-{
-    for (const PluginInfo &p : m_plugins) {
-        if (p.id == id) {
-            return p.enabled;
-        }
-    }
-    return false;
 }
 
 void PluginManager::scanRoot(const QUrl &root)
@@ -108,7 +64,6 @@ void PluginManager::scanRoot(const QUrl &root)
     }
 
     const QStringList entries = rootDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
-    QSettings settings;
     for (const QString &entry : entries) {
         const QUrl pluginDir = joinUrl(root, entry);
         PluginInfo info;
@@ -117,11 +72,9 @@ void PluginManager::scanRoot(const QUrl &root)
         }
 
         info.pluginDir = pluginDir;
-        info.enabled = settings.value(QString::fromLatin1(kEnabledKeyFmt).arg(info.id), true).toBool();
         m_plugins.append(info);
         qDebug().noquote() << "PluginManager: loaded" << info.id
                            << "v" + info.version
-                           << "(" + (info.enabled ? QStringLiteral("enabled") : QStringLiteral("disabled")) + ")"
                            << "from" << pluginDir.toString();
     }
 }
@@ -192,7 +145,6 @@ void PluginManager::recomputeAvailability()
         known.insert(p.id);
     }
 
-    // First pass: every plugin starts unavailable; record missing deps once.
     for (PluginInfo &p : m_plugins) {
         p.available = false;
         p.missingDependencies.clear();
@@ -203,13 +155,13 @@ void PluginManager::recomputeAvailability()
         }
     }
 
-    // Fixed-point: a plugin becomes available when user-enabled, no missing
-    // deps, and every declared dep is already (enabled && available).
+    // Fixed point: a plugin becomes available when no missing deps and every
+    // declared dep is itself already available. Cycles end stuck unavailable.
     bool changed = true;
     while (changed) {
         changed = false;
         for (PluginInfo &p : m_plugins) {
-            if (p.available || !p.enabled || !p.missingDependencies.isEmpty()) {
+            if (p.available || !p.missingDependencies.isEmpty()) {
                 continue;
             }
 
@@ -217,7 +169,7 @@ void PluginManager::recomputeAvailability()
             for (const QString &dep : p.dependencies) {
                 bool ok = false;
                 for (const PluginInfo &q : m_plugins) {
-                    if (q.id == dep && q.enabled && q.available) {
+                    if (q.id == dep && q.available) {
                         ok = true;
                         break;
                     }
@@ -240,9 +192,9 @@ void PluginManager::recomputeAvailability()
             qWarning().noquote() << "PluginManager:" << p.id
                                  << "has missing dependencies:"
                                  << p.missingDependencies.join(QStringLiteral(", "));
-        } else if (p.enabled && !p.available) {
+        } else if (!p.available) {
             qWarning().noquote() << "PluginManager:" << p.id
-                                 << "unavailable (dependency disabled or cyclic)";
+                                 << "unavailable (cyclic dependency)";
         }
     }
 }

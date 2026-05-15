@@ -1,12 +1,15 @@
 #pragma once
 
+#include <QHash>
 #include <QObject>
+#include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
 
 class QTimer;
 class DisplayBackend;
 class LedBackend;
+class OrbitalApi;
 class PluginManager;
 class SystemDetailsBackend;
 class SystemStatsBackend;
@@ -82,6 +85,8 @@ public:
     void setWifiEnabled(bool enable);
     void setBrightness(int percent);
 
+    Q_INVOKABLE QObject *apiFor(const QString &pluginId);
+
     Q_INVOKABLE void connectToWifi(const QString &ssid, const QString &password);
     Q_INVOKABLE void disconnectFromWifi(const QString &ssid);
     Q_INVOKABLE void forgetNetwork(const QString &ssid);
@@ -101,6 +106,9 @@ signals:
     void wifiOperationResult(QString operation, bool success, QString message);
     void volumeKeyEvent(QString key, int value);
     void screenshotRequested();
+    void pluginToastRequested(QString message);
+    void pluginPageRequested(QUrl url, QVariantMap props);
+    void pluginPopRequested();
 
 private slots:
     void refreshStats();
@@ -113,4 +121,5 @@ private:
     WifiBackend *m_wifiBackend = nullptr;
     PluginManager *m_pluginManager = nullptr;
     QTimer *m_timer = nullptr;
+    QHash<QString, OrbitalApi *> m_apis;
 };

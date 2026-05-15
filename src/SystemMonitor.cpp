@@ -6,6 +6,7 @@
 #include "backend/SystemHelpers.h"
 #include "backend/SystemStatsBackend.h"
 #include "backend/WifiBackend.h"
+#include "plugins/OrbitalApi.h"
 #include "plugins/PluginManager.h"
 
 #include <QProcess>
@@ -207,6 +208,21 @@ QObject *SystemMonitor::systemDetailsBackend() const
 QObject *SystemMonitor::pluginManager() const
 {
     return m_pluginManager;
+}
+
+QObject *SystemMonitor::apiFor(const QString &pluginId)
+{
+    auto it = m_apis.constFind(pluginId);
+    if (it != m_apis.constEnd()) {
+        return it.value();
+    }
+
+    auto *api = new OrbitalApi(this, pluginId, this);
+    connect(api, &OrbitalApi::toastRequested, this, &SystemMonitor::pluginToastRequested);
+    connect(api, &OrbitalApi::pageRequested, this, &SystemMonitor::pluginPageRequested);
+    connect(api, &OrbitalApi::popRequested, this, &SystemMonitor::pluginPopRequested);
+    m_apis.insert(pluginId, api);
+    return api;
 }
 
 void SystemMonitor::setWifiEnabled(bool enable)

@@ -7,8 +7,11 @@ Rectangle {
     id: root
     color: "#121212"
 
+    required property var api
     required property string pluginId
     required property string pluginName
+
+    property string lastGreet: api.settingValue("lastGreet", "(never)")
 
     ColumnLayout {
         anchors.fill: parent
@@ -61,24 +64,36 @@ Rectangle {
 
             ColumnLayout {
                 anchors.centerIn: parent
-                spacing: 12
+                width: parent.width - 40
+                spacing: 16
 
                 Text {
                     text: "Greetings — and thanks to example-hello"
                     color: "white"
-                    font.pixelSize: 20
+                    font.pixelSize: 18
                     font.bold: true
                     Layout.alignment: Qt.AlignHCenter
+                    horizontalAlignment: Text.AlignHCenter
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
                 }
 
                 Text {
-                    text: "Disable 'Hello' in Edit mode and this plugin will disappear from the list."
+                    text: "Last greet recorded: " + root.lastGreet
                     color: "#888"
                     font.pixelSize: 12
-                    wrapMode: Text.WordWrap
                     Layout.alignment: Qt.AlignHCenter
-                    Layout.maximumWidth: 280
-                    horizontalAlignment: Text.AlignHCenter
+                }
+
+                Button {
+                    text: "Greet"
+                    Layout.alignment: Qt.AlignHCenter
+                    onClicked: {
+                        var now = new Date().toISOString()
+                        root.api.setSettingValue("lastGreet", now)
+                        root.lastGreet = now
+                        root.api.toast("Hi there!")
+                    }
                 }
             }
         }

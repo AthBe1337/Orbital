@@ -96,6 +96,8 @@ qt_add_executable(appOrbital
     src/plugins/PluginInfo.h
     src/plugins/PluginManager.h
     src/plugins/PluginManager.cpp
+    src/plugins/OrbitalApi.h
+    src/plugins/OrbitalApi.cpp
 )
 
 target_compile_definitions(appOrbital

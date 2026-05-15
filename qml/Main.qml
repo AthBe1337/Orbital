@@ -91,6 +91,18 @@ Window {
         function onScreenshotRequested() {
             window.captureScreenshot()
         }
+
+        function onPluginToastRequested(message) {
+            window.showScreenshotToast(message)
+        }
+
+        function onPluginPageRequested(url, props) {
+            stackView.push(url, props)
+        }
+
+        function onPluginPopRequested() {
+            stackView.pop()
+        }
     }
 
     // ================= POPUPS =================

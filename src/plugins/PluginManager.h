@@ -11,7 +11,6 @@ class PluginManager : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(QVariantList plugins READ pluginsVariant NOTIFY pluginsChanged)
-    Q_PROPERTY(QVariantList allPlugins READ allPluginsVariant NOTIFY pluginsChanged)
 
 public:
     explicit PluginManager(QObject *parent = nullptr);
@@ -20,10 +19,6 @@ public:
     void scan();
 
     QVariantList pluginsVariant() const;
-    QVariantList allPluginsVariant() const;
-
-    Q_INVOKABLE void setEnabled(const QString &id, bool enabled);
-    Q_INVOKABLE bool isEnabled(const QString &id) const;
 
 signals:
     void pluginsChanged();

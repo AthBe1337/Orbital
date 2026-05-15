@@ -456,9 +456,12 @@ Rectangle {
                         }
 
                         Text {
-                            text: root.sysMon && root.sysMon.pluginManager
-                                  ? root.sysMon.pluginManager.plugins.length + " enabled"
-                                  : ""
+                            text: {
+                                if (!root.sysMon || !root.sysMon.pluginManager)
+                                    return ""
+                                var n = root.sysMon.pluginManager.plugins.length
+                                return n + (n === 1 ? " plugin" : " plugins")
+                            }
                             color: "#888"
                             font.pixelSize: 12
                         }
