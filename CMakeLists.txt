@@ -15,13 +15,32 @@ find_package(Qt6 COMPONENTS Quick Core Network REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBDRM REQUIRED libdrm)
 
-# 是否将仓库自带的示例插件编入二进制。默认不编译；开发/演示时显式打开：
-#   cmake -DORBITAL_BUILD_EXAMPLE_PLUGINS=ON ...
-option(ORBITAL_BUILD_EXAMPLE_PLUGINS "Include bundled example plugins in the build" OFF)
+# 是否将仓库自带的插件编入二进制。默认不编译；显式打开：
+#   cmake -DORBITAL_BUILD_PLUGINS=ON ...
+option(ORBITAL_BUILD_PLUGINS "Include bundled plugins (sound, bluetooth, ...) in the build" OFF)
 
-set(ORBITAL_EXAMPLE_PLUGIN_RESOURCES "")
+# 示例插件单独开关，仅供插件开发参考；默认不编译：
+#   cmake -DORBITAL_BUILD_EXAMPLE_PLUGINS=ON ...
+option(ORBITAL_BUILD_EXAMPLE_PLUGINS "Include example plugins in the build" OFF)
+
+set(ORBITAL_PLUGIN_RESOURCES "")
+if(ORBITAL_BUILD_PLUGINS)
+    list(APPEND ORBITAL_PLUGIN_RESOURCES
+        plugins/sound/manifest.json
+        plugins/sound/Page.qml
+        plugins/sound/DeviceListPage.qml
+        plugins/sound/CardProfilePage.qml
+        plugins/bluetooth/manifest.json
+        plugins/bluetooth/Page.qml
+        plugins/bluetooth/DeviceDetailPage.qml
+    )
+    message(STATUS "Bundled plugins: ENABLED")
+else()
+    message(STATUS "Bundled plugins: disabled (pass -DORBITAL_BUILD_PLUGINS=ON to include)")
+endif()
+
 if(ORBITAL_BUILD_EXAMPLE_PLUGINS)
-    list(APPEND ORBITAL_EXAMPLE_PLUGIN_RESOURCES
+    list(APPEND ORBITAL_PLUGIN_RESOURCES
         plugins/example-hello/manifest.json
         plugins/example-hello/Page.qml
         plugins/example-dependent/manifest.json
@@ -161,11 +180,7 @@ qt_add_qml_module(appOrbital
         assets/terminal.svg
         assets/screen-off.svg
         assets/plug.svg
-        plugins/sound/manifest.json
-        plugins/sound/Page.qml
-        plugins/sound/DeviceListPage.qml
-        plugins/sound/CardProfilePage.qml
-        ${ORBITAL_EXAMPLE_PLUGIN_RESOURCES}
+        ${ORBITAL_PLUGIN_RESOURCES}
 )
 
 # 链接库

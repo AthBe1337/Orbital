@@ -1,11 +1,13 @@
 #pragma once
 
+#include <QHash>
 #include <QJSValue>
 #include <QObject>
 #include <QString>
 #include <QUrl>
 #include <QVariantMap>
 
+class QProcess;
 class SystemMonitor;
 
 class OrbitalApi : public QObject
@@ -23,6 +25,17 @@ public:
     Q_INVOKABLE void run(const QString &program,
                          const QStringList &args,
                          const QJSValue &callback);
+
+    // Long-lived subprocess with bidirectional IO. onChunk is invoked with
+    // (text) for each chunk written to stdout/stderr (merged). onExit is
+    // invoked with (exitCode) when the process finishes. Returns a process
+    // id usable with writeStdin/killProc, or -1 on failure.
+    Q_INVOKABLE int spawn(const QString &program,
+                          const QStringList &args,
+                          const QJSValue &onChunk,
+                          const QJSValue &onExit);
+    Q_INVOKABLE bool writeStdin(int procId, const QString &text);
+    Q_INVOKABLE void killProc(int procId);
 
     Q_INVOKABLE QString readFile(const QString &path);
     Q_INVOKABLE bool writeFile(const QString &path, const QString &content);
@@ -44,4 +57,7 @@ private:
 
     SystemMonitor *m_systemMonitor;
     QString m_pluginId;
+
+    int m_nextProcId = 1;
+    QHash<int, QProcess *> m_processes;
 };

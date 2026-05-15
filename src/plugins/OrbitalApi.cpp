@@ -73,6 +73,75 @@ void OrbitalApi::run(const QString &program, const QStringList &args, const QJSV
     proc->start();
 }
 
+int OrbitalApi::spawn(const QString &program,
+                      const QStringList &args,
+                      const QJSValue &onChunk,
+                      const QJSValue &onExit)
+{
+    auto *proc = new QProcess(this);
+    proc->setProgram(program);
+    proc->setArguments(args);
+    // Merge stderr so callers see prompts and warnings inline with stdout.
+    proc->setProcessChannelMode(QProcess::MergedChannels);
+
+    const int procId = m_nextProcId++;
+    m_processes.insert(procId, proc);
+
+    QObject::connect(proc, &QProcess::readyRead, this,
+                     [proc, onChunk]() {
+                         const QByteArray data = proc->readAll();
+                         if (data.isEmpty()) return;
+                         QJSValue cb = onChunk;
+                         if (cb.isCallable()) {
+                             QJSValueList args;
+                             args << QJSValue(QString::fromUtf8(data));
+                             cb.call(args);
+                         }
+                     });
+
+    auto fired = std::make_shared<bool>(false);
+    auto finish = [this, procId, proc, onExit, fired](int exitCode) {
+        if (*fired) {
+            proc->deleteLater();
+            return;
+        }
+        *fired = true;
+        m_processes.remove(procId);
+        QJSValue cb = onExit;
+        if (cb.isCallable()) {
+            QJSValueList args;
+            args << QJSValue(exitCode);
+            cb.call(args);
+        }
+        proc->deleteLater();
+    };
+
+    QObject::connect(proc, &QProcess::finished, this,
+                     [finish](int exitCode, QProcess::ExitStatus) { finish(exitCode); });
+    QObject::connect(proc, &QProcess::errorOccurred, this,
+                     [finish](QProcess::ProcessError) { finish(-1); });
+
+    proc->start();
+    return procId;
+}
+
+bool OrbitalApi::writeStdin(int procId, const QString &text)
+{
+    QProcess *proc = m_processes.value(procId);
+    if (!proc) return false;
+    return proc->write(text.toUtf8()) >= 0;
+}
+
+void OrbitalApi::killProc(int procId)
+{
+    QProcess *proc = m_processes.value(procId);
+    if (!proc) return;
+    proc->terminate();
+    if (!proc->waitForFinished(500)) {
+        proc->kill();
+    }
+}
+
 QString OrbitalApi::readFile(const QString &path)
 {
     QFile f(path);
