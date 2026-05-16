@@ -9,6 +9,7 @@
 #include "plugins/OrbitalApi.h"
 #include "plugins/PluginManager.h"
 
+#include <QDebug>
 #include <QProcess>
 #include <QTimer>
 #include <QUrl>
@@ -223,6 +224,17 @@ QObject *SystemMonitor::apiFor(const QString &pluginId)
     connect(api, &OrbitalApi::popRequested, this, &SystemMonitor::pluginPopRequested);
     m_apis.insert(pluginId, api);
     return api;
+}
+
+void SystemMonitor::registerPluginExports(const QString &pluginId, const QJSValue &exports)
+{
+    m_pluginExports.insert(pluginId, exports);
+    qDebug().noquote() << "SystemMonitor: registered exports for plugin" << pluginId;
+}
+
+QJSValue SystemMonitor::pluginExports(const QString &pluginId) const
+{
+    return m_pluginExports.value(pluginId);
 }
 
 void SystemMonitor::setWifiEnabled(bool enable)

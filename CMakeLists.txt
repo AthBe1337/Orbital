@@ -31,6 +31,7 @@ if(ORBITAL_BUILD_PLUGINS)
         plugins/sound/Page.qml
         plugins/sound/DeviceListPage.qml
         plugins/sound/CardProfilePage.qml
+        plugins/sound/service.qml
         plugins/bluetooth/manifest.json
         plugins/bluetooth/icon.svg
         plugins/bluetooth/Page.qml

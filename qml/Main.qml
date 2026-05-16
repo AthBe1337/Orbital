@@ -23,6 +23,30 @@ Window {
         id: terminalSession
     }
 
+    // Eagerly load each plugin's service.qml (if declared) so its exports
+    // are available before any other plugin's Page.qml is opened. Loaders
+    // are hidden — services are non-visual.
+    Item {
+        id: pluginServicesHost
+        visible: false
+        Repeater {
+            model: backend.pluginManager ? backend.pluginManager.plugins : []
+            Loader {
+                visible: false
+                Component.onCompleted: {
+                    var url = modelData.serviceUrl
+                    if (!url || url.toString() === "") return
+                    setSource(url, {
+                        "api": backend.apiFor(modelData.id),
+                        "pluginId": modelData.id,
+                        "pluginName": modelData.name,
+                        "pluginDir": modelData.pluginDir
+                    })
+                }
+            }
+        }
+    }
+
     // --- 1. CPU 配色 (经典性能监控色: 绿 -> 黄 -> 红) ---
     function cpuColor(v) {
         var value = Math.max(0, Math.min(1, v));

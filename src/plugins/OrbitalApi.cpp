@@ -194,3 +194,18 @@ QString OrbitalApi::scopedSettingKey(const QString &key) const
 {
     return QStringLiteral("plugins/%1/%2").arg(m_pluginId, key);
 }
+
+void OrbitalApi::registerExports(const QJSValue &exports)
+{
+    if (m_systemMonitor) {
+        m_systemMonitor->registerPluginExports(m_pluginId, exports);
+    }
+}
+
+QJSValue OrbitalApi::pluginExports(const QString &pluginId)
+{
+    if (m_systemMonitor) {
+        return m_systemMonitor->pluginExports(pluginId);
+    }
+    return QJSValue();
+}

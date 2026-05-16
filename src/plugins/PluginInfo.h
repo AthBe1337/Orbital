@@ -14,6 +14,7 @@ struct PluginInfo
     QUrl iconUrl;
     QUrl pageUrl;
     QUrl rowUrl;
+    QUrl serviceUrl;
     QUrl pluginDir;
     QStringList dependencies;
     bool available = true;
@@ -29,6 +30,7 @@ struct PluginInfo
             {QStringLiteral("iconUrl"), iconUrl},
             {QStringLiteral("pageUrl"), pageUrl},
             {QStringLiteral("rowUrl"), rowUrl},
+            {QStringLiteral("serviceUrl"), serviceUrl},
             {QStringLiteral("pluginDir"), pluginDir},
             {QStringLiteral("dependencies"), dependencies},
             {QStringLiteral("available"), available},

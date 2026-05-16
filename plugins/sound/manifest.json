@@ -1,8 +1,9 @@
 {
   "id": "sound",
   "name": "Sound",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Output / input device selection and per-channel volume via PipeWire.",
   "icon": "icon.svg",
-  "page": "Page.qml"
+  "page": "Page.qml",
+  "service": "service.qml"
 }

@@ -47,6 +47,12 @@ public:
     Q_INVOKABLE QVariant settingValue(const QString &key, const QVariant &defaultValue = {});
     Q_INVOKABLE void setSettingValue(const QString &key, const QVariant &value);
 
+    // Cross-plugin exports. A plugin registers a JS object via registerExports
+    // (typically from its service.qml at startup); any other plugin retrieves
+    // it via pluginExports("plugin-id"). Returns undefined if not registered.
+    Q_INVOKABLE void registerExports(const QJSValue &exports);
+    Q_INVOKABLE QJSValue pluginExports(const QString &pluginId);
+
 signals:
     void toastRequested(QString message);
     void pageRequested(QUrl url, QVariantMap props);

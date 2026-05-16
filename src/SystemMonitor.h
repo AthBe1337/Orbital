@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QHash>
+#include <QJSValue>
 #include <QObject>
 #include <QUrl>
 #include <QVariantList>
@@ -87,6 +88,12 @@ public:
 
     Q_INVOKABLE QObject *apiFor(const QString &pluginId);
 
+    // Cross-plugin exports registry. A plugin's service.qml calls
+    // registerPluginExports("plugin-id", { /* JS object */ }) and other plugins
+    // retrieve it via pluginExports("plugin-id").
+    void registerPluginExports(const QString &pluginId, const QJSValue &exports);
+    QJSValue pluginExports(const QString &pluginId) const;
+
     Q_INVOKABLE void connectToWifi(const QString &ssid, const QString &password);
     Q_INVOKABLE void disconnectFromWifi(const QString &ssid);
     Q_INVOKABLE void forgetNetwork(const QString &ssid);
@@ -122,4 +129,5 @@ private:
     PluginManager *m_pluginManager = nullptr;
     QTimer *m_timer = nullptr;
     QHash<QString, OrbitalApi *> m_apis;
+    QHash<QString, QJSValue> m_pluginExports;
 };

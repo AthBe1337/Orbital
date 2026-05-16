@@ -125,6 +125,11 @@ bool PluginManager::parseManifest(const QUrl &pluginDirUrl, PluginInfo &out) con
         out.iconUrl = joinUrl(pluginDirUrl, iconRel);
     }
 
+    const QString serviceRel = obj.value(QStringLiteral("service")).toString();
+    if (!serviceRel.isEmpty()) {
+        out.serviceUrl = joinUrl(pluginDirUrl, serviceRel);
+    }
+
     const QJsonValue deps = obj.value(QStringLiteral("dependencies"));
     if (deps.isArray()) {
         for (const QJsonValue &v : deps.toArray()) {
