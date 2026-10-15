@@ -23,6 +23,7 @@ class SystemMonitor : public QObject
     Q_PROPERTY(QVariantList cpuCores READ cpuCores NOTIFY statsChanged)
     Q_PROPERTY(double memPercent READ memPercent NOTIFY statsChanged)
     Q_PROPERTY(QString memDetail READ memDetail NOTIFY statsChanged)
+    Q_PROPERTY(QVariantMap memDetails READ memDetails NOTIFY statsChanged)
     Q_PROPERTY(double diskPercent READ diskPercent NOTIFY statsChanged)
     Q_PROPERTY(QString diskRootUsage READ diskRootUsage NOTIFY statsChanged)
     Q_PROPERTY(QVariantList diskPartitions READ diskPartitions NOTIFY statsChanged)
@@ -40,6 +41,7 @@ class SystemMonitor : public QObject
     Q_PROPERTY(QVariantList netInterfaces READ netInterfaces NOTIFY statsChanged)
     Q_PROPERTY(bool isScreenOn READ isScreenOn NOTIFY screenStateChanged)
     Q_PROPERTY(QString screenOffMethod READ screenOffMethod WRITE setScreenOffMethod NOTIFY screenOffMethodChanged)
+    Q_PROPERTY(int screenOffTimeoutSec READ screenOffTimeoutSec WRITE setScreenOffTimeoutSec NOTIFY screenOffTimeoutChanged)
     Q_PROPERTY(QVariantList wifiList READ wifiList NOTIFY wifiListChanged)
     Q_PROPERTY(bool wifiEnabled READ wifiEnabled WRITE setWifiEnabled NOTIFY wifiEnabledChanged)
     Q_PROPERTY(QVariantMap currentWifiDetails READ currentWifiDetails NOTIFY currentWifiDetailsChanged)
@@ -56,6 +58,7 @@ public:
     QVariantList cpuCores() const;
     double memPercent() const;
     QString memDetail() const;
+    QVariantMap memDetails() const;
     double diskPercent() const;
     QString diskRootUsage() const;
     QVariantList diskPartitions() const;
@@ -74,6 +77,8 @@ public:
     bool isScreenOn() const;
     QString screenOffMethod() const;
     void setScreenOffMethod(const QString &method);
+    int screenOffTimeoutSec() const;
+    void setScreenOffTimeoutSec(int seconds);
     QVariantList wifiList() const;
     bool wifiEnabled() const;
     QVariantMap currentWifiDetails() const;
@@ -99,6 +104,7 @@ public:
     Q_INVOKABLE void forgetNetwork(const QString &ssid);
     Q_INVOKABLE void setAutoConnect(const QString &ssid, bool autoConnect);
     Q_INVOKABLE void scanWifiNetworks();
+    Q_INVOKABLE void pokeIdleTimer();
     Q_INVOKABLE QString nextScreenshotPath() const;
     Q_INVOKABLE void systemCmd(const QString &cmd);
 
@@ -107,6 +113,7 @@ signals:
     void brightnessChanged();
     void screenStateChanged();
     void screenOffMethodChanged();
+    void screenOffTimeoutChanged();
     void wifiListChanged();
     void wifiEnabledChanged();
     void currentWifiDetailsChanged();

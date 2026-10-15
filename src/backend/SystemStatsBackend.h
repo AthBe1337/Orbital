@@ -18,6 +18,7 @@ public:
     QVariantList cpuCores() const;
     double memPercent() const;
     QString memDetail() const;
+    QVariantMap memDetails() const;
     double diskPercent() const;
     QString diskRootUsage() const;
     QVariantList diskPartitions() const;
@@ -51,6 +52,7 @@ private:
     QVariantList m_cpuCores;
     double m_memPercent = 0;
     QString m_memDetail;
+    QVariantMap m_memDetails;
     double m_diskPercent = 0;
     QString m_diskRootUsage;
     QVariantList m_diskPartitions;

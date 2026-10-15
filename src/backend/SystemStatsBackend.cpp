@@ -65,6 +65,11 @@ QString SystemStatsBackend::memDetail() const
     return m_memDetail;
 }
 
+QVariantMap SystemStatsBackend::memDetails() const
+{
+    return m_memDetails;
+}
+
 double SystemStatsBackend::diskPercent() const
 {
     return m_diskPercent;
@@ -154,6 +159,13 @@ void SystemStatsBackend::readMemInfo()
     QTextStream in(&file);
     long total = 0;
     long available = 0;
+    long free = 0;
+    long buffers = 0;
+    long cached = 0;
+    long sreclaimable = 0;
+    long shmem = 0;
+    long swapTotal = 0;
+    long swapFree = 0;
 
     while (true) {
         const QString line = in.readLine();
@@ -165,15 +177,41 @@ void SystemStatsBackend::readMemInfo()
             total = parseMemValue(line);
         } else if (line.startsWith("MemAvailable:")) {
             available = parseMemValue(line);
+        } else if (line.startsWith("MemFree:")) {
+            free = parseMemValue(line);
+        } else if (line.startsWith("Buffers:")) {
+            buffers = parseMemValue(line);
+        } else if (line.startsWith("Cached:")) {
+            cached = parseMemValue(line);
+        } else if (line.startsWith("SReclaimable:")) {
+            sreclaimable = parseMemValue(line);
+        } else if (line.startsWith("Shmem:")) {
+            shmem = parseMemValue(line);
+        } else if (line.startsWith("SwapTotal:")) {
+            swapTotal = parseMemValue(line);
+        } else if (line.startsWith("SwapFree:")) {
+            swapFree = parseMemValue(line);
         }
     }
 
     if (total > 0) {
         const long used = total - available;
+        const long buffCache = buffers + cached + sreclaimable;
         m_memPercent = static_cast<double>(used) / total;
         m_memDetail = QString("%1 / %2 GB")
                           .arg(QString::number(used / 1024.0 / 1024.0, 'f', 1))
                           .arg(QString::number(total / 1024.0 / 1024.0, 'f', 1));
+        // Same caliber as `free`: all values in kB.
+        m_memDetails = QVariantMap{
+            {"total", static_cast<qlonglong>(total)},
+            {"used", static_cast<qlonglong>(used)},
+            {"free", static_cast<qlonglong>(free)},
+            {"shared", static_cast<qlonglong>(shmem)},
+            {"buffCache", static_cast<qlonglong>(buffCache)},
+            {"available", static_cast<qlonglong>(available)},
+            {"swapTotal", static_cast<qlonglong>(swapTotal)},
+            {"swapFree", static_cast<qlonglong>(swapFree)},
+        };
     }
 }
 

@@ -30,17 +30,22 @@ Page {
             spacing: 0
             anchors.leftMargin: 10
             anchors.rightMargin: 15
-            ToolButton {
-                Layout.preferredWidth: 52 
-                Layout.fillHeight: true 
-                contentItem: IconImage {
+            Rectangle {
+                Layout.preferredWidth: 64
+                Layout.fillHeight: true
+                radius: 8
+                color: backTap.pressed ? "#333" : "transparent"
+                IconImage {
                     anchors.centerIn: parent
                     source: "qrc:/MyDesktop/Backend/assets/back.svg"
                     sourceSize: Qt.size(48, 48)
                     color: "white"
                 }
-                background: Rectangle { color: parent.pressed ? "#333" : "transparent" }
-                onClicked: stackView.pop()
+                TapHandler {
+                    id: backTap
+                    gesturePolicy: TapHandler.ReleaseWithinBounds
+                    onTapped: stackView.pop()
+                }
             }
 
             Text {
@@ -55,7 +60,9 @@ Page {
     ScrollView {
         id: scrollView
         anchors.top: parent.top
-        anchors.bottom: parent.bottom // 不再避让键盘，占满全屏
+        anchors.bottom: parent.bottom
+        // wifi keyboard visible -> keep Connect above it
+        anchors.bottomMargin: customKeyboard.visible ? customKeyboard.height : 0
         anchors.left: parent.left
         anchors.right: parent.right
         
@@ -164,33 +171,30 @@ Page {
                     Rectangle { Layout.fillWidth: true; height: 1; color: "#333" }
 
                     // 4. 断开连接按钮
-                    Button {
+                    Rectangle {
                         z: 20
-                        text: "Disconnect"
                         Layout.fillWidth: true
                         Layout.preferredHeight: 50
                         Layout.topMargin: 10
-                        
-                        background: Rectangle {
-                            color: parent.down ? "#b71c1c" : "#332a2a" // 暗红色背景
-                            radius: 8
-                            border.color: "#FF5252"
-                            border.width: 1
-                        }
-                        
-                        contentItem: Text {
-                            text: parent.text
-                            color: "#FF5252" // 红色文字
+                        radius: 8
+                        color: tapDisconnect.pressed ? "#b71c1c" : "#332a2a"
+                        border.color: "#FF5252"
+                        border.width: 1
+                        Text {
+                            anchors.centerIn: parent
+                            text: "Disconnect"
+                            color: "#FF5252"
                             font.bold: true
                             font.pixelSize: 16
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
                         }
-                        
-                        onClicked: {
+                        TapHandler {
+                            id: tapDisconnect
+                            gesturePolicy: TapHandler.ReleaseWithinBounds
+                            onTapped: {
                             if (onOperationStart) onOperationStart(wifiData.ssid)
                             backend.disconnectFromWifi(wifiData.ssid)
                             stackView.pop() // 断开后返回列表页
+                            }
                         }
                     }
                 }
@@ -213,19 +217,38 @@ Page {
                     RowLayout {
                         z: 20
                         Layout.fillWidth: true; spacing: 15
-                        Button {
-                            text: "Forget"
+                        Rectangle {
                             Layout.fillWidth: true; Layout.preferredHeight: 45
-                            background: Rectangle { color: "#332a2a"; radius: 8 }
-                            contentItem: Text { text: parent.text; color: "#FF5252"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                            onClicked: { if (onOperationStart) onOperationStart(wifiData.ssid); backend.forgetNetwork(wifiData.ssid); stackView.pop() }
+                            radius: 8
+                            color: tapForget.pressed ? "#5a3a3a" : "#332a2a"
+                            Text {
+                                anchors.centerIn: parent
+                                text: "Forget"
+                                color: "#FF5252"
+                            }
+                            TapHandler {
+                                id: tapForget
+                                gesturePolicy: TapHandler.ReleaseWithinBounds
+                                onTapped: { if (onOperationStart) onOperationStart(wifiData.ssid); backend.forgetNetwork(wifiData.ssid); stackView.pop()
+                                }
+                            }
                         }
-                        Button {
-                            text: "Connect"
+                        Rectangle {
                             Layout.fillWidth: true; Layout.preferredHeight: 45
-                            background: Rectangle { color: "#2979FF"; radius: 8 }
-                            contentItem: Text { text: parent.text; color: "white"; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                            onClicked: { if (onOperationStart) onOperationStart(wifiData.ssid); backend.connectToWifi(wifiData.ssid, ""); stackView.pop() }
+                            radius: 8
+                            color: tapConnectSaved.pressed ? "#1E5FCC" : "#2979FF"
+                            Text {
+                                anchors.centerIn: parent
+                                text: "Connect"
+                                color: "white"
+                                font.bold: true
+                            }
+                            TapHandler {
+                                id: tapConnectSaved
+                                gesturePolicy: TapHandler.ReleaseWithinBounds
+                                onTapped: { if (onOperationStart) onOperationStart(wifiData.ssid); backend.connectToWifi(wifiData.ssid, ""); stackView.pop()
+                                }
+                            }
                         }
                     }
                 }
@@ -312,13 +335,22 @@ Page {
                         }
                     }
 
-                    Button {
+                    Rectangle {
                         z: 20
-                        text: "Connect"
                         Layout.fillWidth: true; Layout.preferredHeight: 45
-                        background: Rectangle { color: "#2979FF"; radius: 8 }
-                        contentItem: Text { text: parent.text; color: "white"; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                        onClicked: confirmConnect()
+                        radius: 8
+                        color: tapConnectNew.pressed ? "#1E5FCC" : "#2979FF"
+                        Text {
+                            anchors.centerIn: parent
+                            text: "Connect"
+                            color: "white"
+                            font.bold: true
+                        }
+                        TapHandler {
+                            id: tapConnectNew
+                            gesturePolicy: TapHandler.ReleaseWithinBounds
+                            onTapped: confirmConnect()
+                        }
                     }
                 }
             }

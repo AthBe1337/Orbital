@@ -42,6 +42,8 @@ SystemMonitor::SystemMonitor(QObject *parent)
             this, &SystemMonitor::screenStateChanged);
     connect(m_displayBackend, &DisplayBackend::screenOffMethodChanged,
             this, &SystemMonitor::screenOffMethodChanged);
+    connect(m_displayBackend, &DisplayBackend::screenOffTimeoutChanged,
+            this, &SystemMonitor::screenOffTimeoutChanged);
     connect(m_displayBackend, &DisplayBackend::volumeKeyEvent,
             this, &SystemMonitor::volumeKeyEvent);
     connect(m_displayBackend, &DisplayBackend::screenshotRequested,
@@ -57,6 +59,20 @@ SystemMonitor::SystemMonitor(QObject *parent)
             this, &SystemMonitor::wifiOperationResult);
 
     connect(m_timer, &QTimer::timeout, this, &SystemMonitor::refreshStats);
+    // Pause stats polling while the screen is off: this stops the per-second
+    // file reads plus all QML binding churn / Canvas repaints they trigger.
+    // (DisplayBackend also hides all windows, stopping the render loop.)
+    connect(m_displayBackend, &DisplayBackend::screenStateChanged, this, [this]() {
+        if (!m_displayBackend || !m_timer)
+            return;
+        if (m_displayBackend->isScreenOn()) {
+            if (!m_timer->isActive())
+                m_timer->start(1000);
+            refreshStats();
+        } else {
+            m_timer->stop();
+        }
+    });
     m_timer->start(1000);
     QTimer::singleShot(0, this, &SystemMonitor::refreshStats);
 }
@@ -79,6 +95,11 @@ double SystemMonitor::memPercent() const
 QString SystemMonitor::memDetail() const
 {
     return m_statsBackend->memDetail();
+}
+
+QVariantMap SystemMonitor::memDetails() const
+{
+    return m_statsBackend->memDetails();
 }
 
 double SystemMonitor::diskPercent() const
@@ -164,6 +185,21 @@ bool SystemMonitor::isScreenOn() const
 QString SystemMonitor::screenOffMethod() const
 {
     return m_displayBackend->screenOffMethod();
+}
+
+int SystemMonitor::screenOffTimeoutSec() const
+{
+    return m_displayBackend->screenOffTimeoutSec();
+}
+
+void SystemMonitor::setScreenOffTimeoutSec(int seconds)
+{
+    m_displayBackend->setScreenOffTimeoutSec(seconds);
+}
+
+void SystemMonitor::pokeIdleTimer()
+{
+    m_displayBackend->poke();
 }
 
 void SystemMonitor::setScreenOffMethod(const QString &method)
@@ -290,5 +326,9 @@ void SystemMonitor::systemCmd(const QString &cmd)
 
 void SystemMonitor::refreshStats()
 {
+    // Belt and braces: the timer is stopped while screen-off, but guard
+    // against stray triggers (e.g. the startup singleShot racing a toggle).
+    if (m_displayBackend && !m_displayBackend->isScreenOn())
+        return;
     m_statsBackend->update();
 }

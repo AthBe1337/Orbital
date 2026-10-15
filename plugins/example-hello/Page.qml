@@ -40,22 +40,22 @@ Rectangle {
                 anchors.leftMargin: 10
                 anchors.rightMargin: 15
 
-                ToolButton {
-                    Layout.preferredWidth: 52
+                Rectangle {
+                    Layout.preferredWidth: 64
                     Layout.fillHeight: true
-
-                    contentItem: IconImage {
+                    radius: 8
+                    color: backTap.pressed ? "#333" : "transparent"
+                    IconImage {
                         anchors.centerIn: parent
                         source: "qrc:/MyDesktop/Backend/assets/back.svg"
                         sourceSize: Qt.size(48, 48)
                         color: "white"
                     }
-
-                    background: Rectangle {
-                        color: parent.pressed ? "#333" : "transparent"
+                    TapHandler {
+                        id: backTap
+                        gesturePolicy: TapHandler.ReleaseWithinBounds
+                        onTapped: stackView.pop()
                     }
-
-                    onClicked: stackView.pop()
                 }
 
                 Text {
@@ -102,14 +102,38 @@ Rectangle {
                     Layout.alignment: Qt.AlignHCenter
                     spacing: 12
 
-                    Button {
-                        text: "Refresh"
-                        onClicked: root.refreshUptime()
+                    Rectangle {
+                        implicitWidth: 120; implicitHeight: 44
+                        radius: 8
+                        color: tapRefresh.pressed ? "#3a3a3a" : "#252525"
+                        border.color: "#555"
+                        Text {
+                            anchors.centerIn: parent
+                            text: "Refresh"
+                            color: "white"
+                        }
+                        TapHandler {
+                            id: tapRefresh
+                            gesturePolicy: TapHandler.ReleaseWithinBounds
+                            onTapped: root.refreshUptime()
+                        }
                     }
 
-                    Button {
-                        text: "Toast"
-                        onClicked: root.api.toast("Hello from " + root.pluginName + "!")
+                    Rectangle {
+                        implicitWidth: 120; implicitHeight: 44
+                        radius: 8
+                        color: tapToast.pressed ? "#3a3a3a" : "#252525"
+                        border.color: "#555"
+                        Text {
+                            anchors.centerIn: parent
+                            text: "Toast"
+                            color: "white"
+                        }
+                        TapHandler {
+                            id: tapToast
+                            gesturePolicy: TapHandler.ReleaseWithinBounds
+                            onTapped: root.api.toast("Hello from " + root.pluginName + "!")
+                        }
                     }
                 }
             }

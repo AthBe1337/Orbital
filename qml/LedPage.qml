@@ -168,22 +168,22 @@ Page {
                 anchors.leftMargin: 10
                 anchors.rightMargin: 15
 
-                ToolButton {
-                    Layout.preferredWidth: 52
+                Rectangle {
+                    Layout.preferredWidth: 64
                     Layout.fillHeight: true
-
-                    contentItem: IconImage {
+                    radius: 8
+                    color: backTap.pressed ? "#333" : "transparent"
+                    IconImage {
                         anchors.centerIn: parent
                         source: "qrc:/MyDesktop/Backend/assets/back.svg"
                         sourceSize: Qt.size(48, 48)
                         color: "white"
                     }
-
-                    background: Rectangle {
-                        color: parent.pressed ? "#333" : "transparent"
+                    TapHandler {
+                        id: backTap
+                        gesturePolicy: TapHandler.ReleaseWithinBounds
+                        onTapped: stackView.pop()
                     }
-
-                    onClicked: stackView.pop()
                 }
 
                 Text {

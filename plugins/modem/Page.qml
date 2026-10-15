@@ -639,18 +639,22 @@ Rectangle {
                 anchors.rightMargin: 14
                 spacing: 0
 
-                ToolButton {
-                    id: backButton
-                    Layout.preferredWidth: 52
+                Rectangle {
+                    Layout.preferredWidth: 64
                     Layout.fillHeight: true
-                    contentItem: IconImage {
+                    radius: 8
+                    color: backTap.pressed ? "#333" : "transparent"
+                    IconImage {
                         anchors.centerIn: parent
                         source: "qrc:/MyDesktop/Backend/assets/back.svg"
                         sourceSize: Qt.size(48, 48)
                         color: "white"
                     }
-                    background: Rectangle { color: backButton.pressed ? "#333" : "transparent" }
-                    onClicked: root.api.popPage()
+                    TapHandler {
+                        id: backTap
+                        gesturePolicy: TapHandler.ReleaseWithinBounds
+                        onTapped: root.api.popPage()
+                    }
                 }
 
                 Text {
@@ -663,19 +667,23 @@ Rectangle {
 
                 Item { Layout.fillWidth: true }
 
-                ToolButton {
-                    id: refreshButton
-                    Layout.preferredWidth: 48
+                Rectangle {
+                    Layout.preferredWidth: 64
                     Layout.fillHeight: true
-                    enabled: !root.refreshing
-                    contentItem: IconImage {
+                    radius: 8
+                    color: refreshTap.pressed ? "#333" : "transparent"
+                    IconImage {
                         anchors.centerIn: parent
                         source: "qrc:/MyDesktop/Backend/assets/refresh.svg"
                         sourceSize: Qt.size(26, 26)
-                        color: refreshButton.enabled ? "white" : "#666"
+                        color: refreshTap.enabled ? "white" : "#666"
                     }
-                    background: Rectangle { color: refreshButton.pressed ? "#333" : "transparent" }
-                    onClicked: root.refreshAll()
+                    TapHandler {
+                        id: refreshTap
+                        enabled: !root.refreshing
+                        gesturePolicy: TapHandler.ReleaseWithinBounds
+                        onTapped: root.refreshAll()
+                    }
                 }
             }
         }

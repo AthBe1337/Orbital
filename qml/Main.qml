@@ -81,6 +81,36 @@ Window {
         return "#FF5252"; 
     }
 
+    // kB -> self-adaptive unit (for Memory Details popup)
+    function fmtMem(kb) {
+        var v = Number(kb) || 0
+        if (v >= 1048576) return (v / 1048576).toFixed(1) + " GB"
+        if (v >= 1024) return (v / 1024).toFixed(0) + " MB"
+        return v.toFixed(0) + " KB"
+    }
+
+    function memFrac(kb) {
+        var total = Number(backend.memDetails.total) || 0
+        if (total <= 0) return 0
+        return Math.max(0, Math.min(1, (Number(kb) || 0) / total))
+    }
+
+    function swapFrac() {
+        var total = Number(backend.memDetails.swapTotal) || 0
+        if (total <= 0) return 0
+        var used = total - (Number(backend.memDetails.swapFree) || 0)
+        return Math.max(0, Math.min(1, used / total))
+    }
+
+    function segFrac(kb) {
+        var used = Number(backend.memDetails.used) || 0
+        var bc = Number(backend.memDetails.buffCache) || 0
+        var free = Number(backend.memDetails.free) || 0
+        var sum = used + bc + free
+        if (sum <= 0) return 0
+        return Math.max(0, Math.min(1, (Number(kb) || 0) / sum))
+    }
+
     function showScreenshotToast(message) {
         screenshotToastMessage = message
         screenshotToastTimer.restart()
@@ -340,6 +370,179 @@ Window {
                     }
                 }
             }
+            Item { height: 10; Layout.fillWidth: true }
+        }
+    }
+
+    // 2.5 内存详情模态框 (free 口径)
+    Popup {
+        id: memDetailsPopup
+        parent: Overlay.overlay
+        x: Math.round((parent.width - width) / 2)
+        y: Math.round((parent.height - height) / 2)
+        width: parent.width * 0.85
+        height: parent.height * 0.5
+        modal: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        Overlay.modal: Rectangle { color: "#aa000000" }
+
+        enter: Transition {
+            NumberAnimation { property: "opacity"; from: 0.0; to: 1.0; duration: 200 }
+            NumberAnimation { property: "scale"; from: 0.9; to: 1.0; duration: 200 }
+        }
+        exit: Transition {
+            NumberAnimation { property: "opacity"; from: 1.0; to: 0.0; duration: 200 }
+            NumberAnimation { property: "scale"; from: 1.0; to: 0.9; duration: 200 }
+        }
+
+        background: Rectangle {
+            color: "#1e1e1e"
+            radius: 15
+            border.color: "#333333"
+            border.width: 1
+        }
+
+        contentItem: ColumnLayout {
+            id: memContent
+            spacing: 20
+            Item { height: 10; Layout.fillWidth: true }
+
+            Text {
+                text: "Memory Details"
+                color: "white"
+                font.pixelSize: 20
+                font.bold: true
+                Layout.alignment: Qt.AlignHCenter
+            }
+
+            Flickable {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.leftMargin: 25; Layout.rightMargin: 25
+                contentWidth: width
+                contentHeight: memBody.implicitHeight
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+
+                ColumnLayout {
+                    id: memBody
+                    width: parent.width
+                    spacing: 12
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "RAM"; color: "white"; font.pixelSize: 15; font.bold: true; Layout.fillWidth: true }
+                        Text { text: fmtMem(backend.memDetails.used) + " / " + fmtMem(backend.memDetails.total); color: "#888"; font.pixelSize: 13 }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 12; color: "#333"; radius: 6
+                        clip: true
+                        Rectangle {
+                            width: parent.width * segFrac(backend.memDetails.used)
+                            height: parent.height
+                            color: "#FF9800"
+                        }
+                        Rectangle {
+                            x: parent.width * segFrac(backend.memDetails.used)
+                            width: parent.width * segFrac(backend.memDetails.buffCache)
+                            height: parent.height
+                            color: "#2196F3"
+                        }
+                        Rectangle {
+                            x: parent.width * (segFrac(backend.memDetails.used) + segFrac(backend.memDetails.buffCache))
+                            width: parent.width * segFrac(backend.memDetails.free)
+                            height: parent.height
+                            color: "#888"
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        ColumnLayout {
+                            spacing: 2
+                            RowLayout {
+                                spacing: 6
+                                Layout.alignment: Qt.AlignHCenter
+                                Rectangle { width: 10; height: 10; radius: 5; color: "#FF9800"; Layout.alignment: Qt.AlignVCenter }
+                                Text { text: "Used"; color: "#888888"; font.pixelSize: 12; Layout.alignment: Qt.AlignVCenter }
+                            }
+                            Text { text: fmtMem(backend.memDetails.used); color: "white"; font.pixelSize: 14; font.bold: true; Layout.alignment: Qt.AlignHCenter }
+                        }
+                        Item { Layout.fillWidth: true }
+                        ColumnLayout {
+                            spacing: 2
+                            RowLayout {
+                                spacing: 6
+                                Layout.alignment: Qt.AlignHCenter
+                                Rectangle { width: 10; height: 10; radius: 5; color: "#2196F3"; Layout.alignment: Qt.AlignVCenter }
+                                Text { text: "Buff/Cache"; color: "#888888"; font.pixelSize: 12; Layout.alignment: Qt.AlignVCenter }
+                            }
+                            Text { text: fmtMem(backend.memDetails.buffCache); color: "white"; font.pixelSize: 14; font.bold: true; Layout.alignment: Qt.AlignHCenter }
+                        }
+                        Item { Layout.fillWidth: true }
+                        ColumnLayout {
+                            spacing: 2
+                            RowLayout {
+                                spacing: 6
+                                Layout.alignment: Qt.AlignHCenter
+                                Rectangle { width: 10; height: 10; radius: 5; color: "#888888"; Layout.alignment: Qt.AlignVCenter }
+                                Text { text: "Free"; color: "#888888"; font.pixelSize: 12; Layout.alignment: Qt.AlignVCenter }
+                            }
+                            Text { text: fmtMem(backend.memDetails.free); color: "white"; font.pixelSize: 14; font.bold: true; Layout.alignment: Qt.AlignHCenter }
+                        }
+                    }
+
+                    Item { height: 8; Layout.fillWidth: true }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Shared"; color: "#888888"; font.pixelSize: 14; Layout.fillWidth: true }
+                        Text { text: fmtMem(backend.memDetails.shared); color: "white"; font.pixelSize: 14; font.bold: true }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Available"; color: "#888888"; font.pixelSize: 14; Layout.fillWidth: true }
+                        Text { text: fmtMem(backend.memDetails.available); color: "white"; font.pixelSize: 14; font.bold: true }
+                    }
+
+                    Item { height: 8; Layout.fillWidth: true }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "SWAP"; color: "white"; font.pixelSize: 15; font.bold: true; Layout.fillWidth: true }
+                        Text { text: fmtMem((Number(backend.memDetails.swapTotal) || 0) - (Number(backend.memDetails.swapFree) || 0)) + " / " + fmtMem(backend.memDetails.swapTotal); color: "#888"; font.pixelSize: 13 }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 12; color: "#333"; radius: 6
+                        clip: true
+                        Rectangle {
+                            width: (backend.memDetails.swapTotal > 0) ? parent.width * swapFrac() : 0
+                            height: parent.height
+                            color: "#E91E63"
+                        }
+                        Rectangle {
+                            x: (backend.memDetails.swapTotal > 0) ? parent.width * swapFrac() : 0
+                            width: (backend.memDetails.swapTotal > 0) ? parent.width * (1 - swapFrac()) : 0
+                            height: parent.height
+                            color: "#888"
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Rectangle { width: 10; height: 10; radius: 5; color: "#E91E63"; Layout.alignment: Qt.AlignVCenter }
+                        Text { text: "Swap"; color: "#888888"; font.pixelSize: 14; Layout.fillWidth: true; Layout.leftMargin: 8 }
+                        Text { text: fmtMem((Number(backend.memDetails.swapTotal) || 0) - (Number(backend.memDetails.swapFree) || 0)) + " / " + fmtMem(backend.memDetails.swapTotal); color: "white"; font.pixelSize: 14; font.bold: true }
+                    }
+                }
+            }
+
             Item { height: 10; Layout.fillWidth: true }
         }
     }
@@ -704,34 +907,26 @@ Window {
                     }
                 }
 
-                delegate: ItemDelegate {
+                delegate: Rectangle {
                     width: parent.width
                     height: 65
-                    
-                    background: Rectangle {
-                        color: parent.down ? "#2a2a2a" : "transparent"
-                        Rectangle {
-                            width: 4; height: parent.height
-                            color: model.itemColor
-                            visible: parent.parent.down
-                        }
+                    color: tapMenu.pressed ? "#2a2a2a" : "transparent"
+                    Rectangle {
+                        width: 4; height: parent.height
+                        color: model.itemColor
+                        visible: tapMenu.pressed
                     }
-
-                    contentItem: RowLayout {
+                    RowLayout {
                         anchors.fill: parent
                         anchors.leftMargin: 30
                         anchors.rightMargin: 30
                         spacing: 20
-
-                        // 图标
                         IconImage {
                             source: "qrc:/MyDesktop/Backend/assets/" + model.icon
                             sourceSize: Qt.size(24, 24)
-                            color: model.itemColor // 图标颜色跟随定义
+                            color: model.itemColor
                             Layout.alignment: Qt.AlignVCenter
                         }
-
-                        // 文字
                         Text {
                             text: model.name
                             color: model.itemColor
@@ -740,10 +935,11 @@ Window {
                             Layout.fillWidth: true
                             Layout.alignment: Qt.AlignVCenter
                         }
-
                     }
-
-                    onClicked: {
+                    TapHandler {
+                        id: tapMenu
+                        gesturePolicy: TapHandler.ReleaseWithinBounds
+                        onTapped: {
                         // 稍微延迟关闭，让用户看到点击动画
                         drawer.close()
                         
@@ -764,6 +960,7 @@ Window {
                         }
                         else if (model.action === "shutdown") {
                             backend.systemCmd("poweroff")
+                        }
                         }
                     }
                 }
@@ -879,7 +1076,7 @@ Window {
 
                     // Memory Card
                     Rectangle {
-                        Layout.fillWidth: true; height: 160; color: "#1e1e1e"; radius: 12
+                        Layout.fillWidth: true; height: 160; color: tapMem.pressed ? "#2a2a2a" : "#1e1e1e"; radius: 12
                         
                         ColumnLayout {
                             anchors.centerIn: parent
@@ -894,10 +1091,23 @@ Window {
                                 Layout.alignment: Qt.AlignHCenter
                             }
                             
-                            Text { 
+                            Text {
                                 text: backend.memDetail
                                 color: "#aaa"; font.pixelSize: 12 // 字体稍微调大一点点更清晰
                                 Layout.alignment: Qt.AlignHCenter // 确保文字居中
+                            }
+                        }
+                        TapHandler {
+                            id: tapMem
+                            enabled: !memDetailsPopup.visible
+                            onTapped: {
+                                if (!memDetailsPopup.visible) {
+                                    memDetailsPopup.open()
+                                }
+                            }
+                            acceptedButtons: Qt.LeftButton
+                            gesturePolicy: TapHandler.WithinBounds
+                            onCanceled: {
                             }
                         }
                     }

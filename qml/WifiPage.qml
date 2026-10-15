@@ -55,17 +55,22 @@ Page {
                 anchors.rightMargin: 15
 
                 // 返回按钮
-                ToolButton {
-                    Layout.preferredWidth: 52 
-                    Layout.fillHeight: true 
-                    contentItem: IconImage {
+                Rectangle {
+                    Layout.preferredWidth: 64
+                    Layout.fillHeight: true
+                    radius: 8
+                    color: backTap.pressed ? "#333" : "transparent"
+                    IconImage {
                         anchors.centerIn: parent
                         source: "qrc:/MyDesktop/Backend/assets/back.svg"
                         sourceSize: Qt.size(48, 48)
                         color: "white"
                     }
-                    background: Rectangle { color: parent.pressed ? "#333" : "transparent" }
-                    onClicked: stackView.pop()
+                    TapHandler {
+                        id: backTap
+                        gesturePolicy: TapHandler.ReleaseWithinBounds
+                        onTapped: stackView.pop()
+                    }
                 }
 
                 // 标题文字 (25px Bold)
@@ -81,14 +86,13 @@ Page {
                 Item { Layout.fillWidth: true }
                 
                 // 刷新按钮
-                ToolButton {
+                Rectangle {
                     visible: backend.wifiEnabled
-                    Layout.preferredWidth: 52 
-                    Layout.fillHeight: true 
-                    
-                    background: Rectangle { color: parent.pressed ? "#333" : "transparent"; radius: 4 }
-                    
-                    contentItem: IconImage {
+                    Layout.preferredWidth: 64
+                    Layout.fillHeight: true
+                    radius: 8
+                    color: refreshTap.pressed ? "#333" : "transparent"
+                    IconImage {
                         id: refreshIcon
                         anchors.centerIn: parent
                         source: "qrc:/MyDesktop/Backend/assets/refresh.svg"
@@ -106,10 +110,13 @@ Page {
                             }
                         }
                     }
-
-                    onClicked: {
+                    TapHandler {
+                        id: refreshTap
+                        gesturePolicy: TapHandler.ReleaseWithinBounds
+                        onTapped: {
                         isScanning = true
                         backend.scanWifiNetworks()
+                        }
                     }
                 }
             }
@@ -249,11 +256,12 @@ Page {
                     }
 
                     // 列表项
-                    ItemDelegate {
+                    Rectangle {
                         width: parent.width; height: 64
-                        background: Rectangle { color: parent.down ? "#2a2a2a" : "transparent" }
+                        color: rowTap.pressed ? "#2a2a2a" : "transparent"
 
-                        contentItem: RowLayout {
+                        RowLayout {
+                            anchors.fill: parent
                             spacing: 15; anchors.leftMargin: 20; anchors.rightMargin: 20
 
                             // 1. 左侧信号图标 (保持不变)
@@ -323,7 +331,10 @@ Page {
                             }
                         }
 
-                        onClicked: {
+                        TapHandler {
+                            id: rowTap
+                            gesturePolicy: TapHandler.ReleaseWithinBounds
+                            onTapped: {
                             stackView.push("qrc:/MyDesktop/Backend/qml/WifiConnectPage.qml", {
                                 "backend": backend,
                                 "wifiData": modelData,
@@ -334,6 +345,7 @@ Page {
                                     wifiPage.pendingSsid = ssid
                                 }
                             })
+                            }
                         }
                     }
                 }

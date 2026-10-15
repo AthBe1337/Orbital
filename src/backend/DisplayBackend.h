@@ -14,6 +14,9 @@ class QTimer;
 class DisplayBackend : public QObject
 {
     Q_OBJECT
+    // Auto screen-off idle timeout in seconds. 0 = never (power key only).
+    // Persisted via QSettings (display/screenOffTimeoutSec); default 120.
+    Q_PROPERTY(int screenOffTimeoutSec READ screenOffTimeoutSec WRITE setScreenOffTimeoutSec NOTIFY screenOffTimeoutChanged)
 
 public:
     explicit DisplayBackend(QObject *parent = nullptr);
@@ -23,25 +26,39 @@ public:
     bool isScreenOn() const;
     QString screenOffMethod() const;
     void setScreenOffMethod(const QString &method);
+    int screenOffTimeoutSec() const;
+    void setScreenOffTimeoutSec(int seconds);
 
 public slots:
     void setBrightness(int percent);
+    // Reset the idle countdown (any user activity should call this).
+    void poke();
 
 signals:
     void brightnessChanged();
     void screenStateChanged();
     void screenOffMethodChanged();
+    void screenOffTimeoutChanged();
     void volumeKeyEvent(QString key, int value);
     void screenshotRequested();
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private slots:
     void onPowerInputEvent(int fd);
     void onVolumeInputEvent(int fd);
+    void onIdleTimeout();
 
 private:
     void initPowerKeyMonitor();
     void initVolumeKeyMonitor();
     void toggleScreen();
+    void wakeScreen();
+    void scheduleIdleTimer();
+    // Show/hide all Qt windows to fully stop/restart the render loop
+    // when the screen is off/on (saves GPU + vsync wakeups).
+    void setWindowsVisible(bool visible);
     void findBacklightPath();
     void readBrightness();
     void initDrmPanel();
@@ -62,6 +79,8 @@ private:
     QList<QSocketNotifier *> m_volumeNotifiers;
     bool m_isScreenOn = true;
     QTimer *m_longPressTimer = nullptr;
+    QTimer *m_idleTimer = nullptr;
+    int m_screenOffTimeoutSec = 120;
     bool m_volumeUpPressed = false;
     bool m_volumeDownPressed = false;
     bool m_screenshotComboTriggered = false;
