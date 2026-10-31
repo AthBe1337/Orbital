@@ -64,7 +64,9 @@
 
 #### Debian / Ubuntu
 ```bash
-sudo apt install cmake g++ git qt6-base-dev qt6-declarative-dev libgl-dev libegl-dev
+sudo apt install build-essential cmake pkg-config git \
+    qt6-base-dev qt6-declarative-dev qt6-qpa-plugins \
+    libgl-dev libegl-dev libdrm-dev
 ```
 
 #### Arch Linux
@@ -75,9 +77,9 @@ sudo pacman -S cmake gcc git qt6-base qt6-declarative
 ### 编译步骤
 
 ```bash
-git clone https://github.com/AthBe1337/Orbital.git
+git clone https://github.com/Alan-mx/Orbital.git
 cd Orbital
-cmake -B build
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DORBITAL_BUILD_PLUGINS=ON
 cmake --build build -j$(nproc)
 ```
 
@@ -97,7 +99,8 @@ cmake --build build -j$(nproc)
 #### Debian / Ubuntu 运行时包
 ```bash
 sudo apt install libqt6quick6 libqt6qml6 qml6-module-qtquick \
-    qml6-module-qtquick-controls qml6-module-qtquick-layouts network-manager
+    qml6-module-qtquick-controls qml6-module-qtquick-layouts \
+    qml6-module-qtquick-shapes network-manager
 ```
 
 使用 Modem 插件还需要安装并运行 ModemManager：
@@ -120,25 +123,71 @@ cd build
 
 | 选项 | 说明 | 默认值 |
 |------|------|--------|
-| `--scale <值>` | Qt 缩放因子 | `2.2` |
-| `--touch-input-path <路径>` | 触摸屏 evdev 设备路径 | `/dev/input/event5` |
-| `--touch-inhibit-path <路径>` | 触摸抑制 sysfs 路径 | `/sys/devices/...input5/inhibited` |
-| `--power-key-path <路径>` | 电源键 evdev 设备路径 | `/dev/input/event0` |
-| `--volume-key-path <路径>` | 音量键 evdev 设备路径 | `/dev/input/event3` |
+| `--scale <值>` | Qt 缩放因子 | OnePlus 6 为 `2.15`，OnePlus 6T/未知设备为 `2.2` |
+| `--touch-input-path <路径>` | 触摸屏 evdev 设备路径 | 自动发现；OnePlus 6T 可回退 `/dev/input/event5` |
+| `--touch-inhibit-path <路径>` | 触摸抑制 sysfs 路径 | 自动发现 RMI4 设备节点 |
+| `--power-key-path <路径>` | 电源键 evdev 设备路径 | 自动发现；OnePlus 6T 可回退 `/dev/input/event0` |
+| `--volume-key-path <路径>` | 音量键 evdev 设备路径 | 自动发现；OnePlus 6T 可回退 `/dev/input/event3` |
 | `--screenshot-dir <路径>` | 截图保存目录 | 空（默认 `~/Pictures/Orbital/Screenshots`） |
 
 `run.sh` 使用 `QT_QPA_PLATFORM=eglfs`，直接在 framebuffer 上运行，无需 X11 或 Wayland。
 
 ---
 
+## 设备适配
+
+启动脚本会根据设备树自动识别 OnePlus 6 和 OnePlus 6T：
+
+| 设备 | 设备树 compatible | 默认缩放 | 分辨率 |
+|---|---|---|---|
+| OnePlus 6 | `oneplus,enchilada` | `2.15` | `1080 × 2280` |
+| OnePlus 6T | `oneplus,fajita` | `2.2` | `1080 × 2340` |
+
+触摸屏、电源键和音量键通过 sysfs 设备名称与真实路径自动发现。发现结果不唯一时不会猜测 event 编号。可使用 `ORBITAL_DEVICE` 强制选择 profile：
+
+```bash
+ORBITAL_DEVICE=oneplus-enchilada ./run.sh
+```
+
+启动时会输出最终 profile、缩放和输入设备来源。以下环境变量仍可覆盖自动发现：
+
+```bash
+ORBITAL_TOUCH_INPUT_PATH=/dev/input/eventX
+ORBITAL_POWER_KEY_PATH=/dev/input/eventY
+ORBITAL_VOLUME_KEY_PATH=/dev/input/eventZ
+ORBITAL_TOUCH_INHIBIT_PATH=/sys/.../inhibited
+```
+
+运行设备 profile 自动测试：
+
+```bash
+bash scripts/tests/device-profile-test.sh
+bash scripts/tests/run-config-test.sh
+```
+
+---
+
 ## 移植说明
 
-目前仅在**一加 6T**（Snapdragon 845）上测试通过。移植到其他设备时需根据实际情况调整以下参数：
+当前支持配置为 **OnePlus 6 / OnePlus 6T**（Snapdragon 845）。移植到其他设备时需根据实际情况调整以下参数：
 
 - **触摸输入路径**：`--touch-input-path`（用 `evtest` 确认正确设备）
 - **触摸抑制路径**：`--touch-inhibit-path`（不支持的设备可指向不存在的路径）
 - **电源键/音量键路径**：`--power-key-path`、`--volume-key-path`
 - **缩放因子**：`--scale`（根据屏幕分辨率和 DPI 调整）
+
+### WiFi 连接排查
+
+如果 WiFi 列表正常但连接失败，先通过 SSH 验证 NetworkManager：
+
+```bash
+systemctl is-active NetworkManager
+nmcli -t -f DEVICE,TYPE,STATE device status
+nmcli dev wifi connect "SSID" password "PASSWORD"
+journalctl -u NetworkManager -n 100 --no-pager
+```
+
+Orbital 会在连接失败、`nmcli` 不可用或等待超过 45 秒时显示错误提示。新网络密码页的 Connect 按钮固定在软键盘上方，并与键盘 Done 键共用一次提交逻辑。
 
 ## 贡献
 
