@@ -23,6 +23,7 @@ public:
     ~DisplayBackend() override;
 
     int brightness() const;
+    double brightnessOverlayOpacity() const;
     bool isScreenOn() const;
     QString screenOffMethod() const;
     void setScreenOffMethod(const QString &method);
@@ -36,6 +37,7 @@ public slots:
 
 signals:
     void brightnessChanged();
+    void brightnessOverlayOpacityChanged();
     void screenStateChanged();
     void screenOffMethodChanged();
     void screenOffTimeoutChanged();
@@ -46,6 +48,7 @@ protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private slots:
+    void applyBrightness();
     void onPowerInputEvent(int fd);
     void onVolumeInputEvent(int fd);
     void onIdleTimeout();
@@ -56,6 +59,7 @@ private:
     void toggleScreen();
     void wakeScreen();
     void scheduleIdleTimer();
+    void updateBrightnessOverlay();
     // Show/hide all Qt windows to fully stop/restart the render loop
     // when the screen is off/on (saves GPU + vsync wakeups).
     void setWindowsVisible(bool visible);
@@ -72,6 +76,7 @@ private:
     QStringList m_volumeKeyPaths;
     int m_maxBrightness = 0;
     int m_brightnessPercent = 50;
+    double m_brightnessOverlayOpacity = 0.0;
 
     QList<int> m_powerInputFds;
     QList<int> m_volumeInputFds;
@@ -80,6 +85,9 @@ private:
     bool m_isScreenOn = true;
     QTimer *m_longPressTimer = nullptr;
     QTimer *m_idleTimer = nullptr;
+    QTimer *m_brightnessTimer = nullptr;
+    bool m_brightnessWriteUnavailable = false;
+    bool m_brightnessFallbackActive = false;
     int m_screenOffTimeoutSec = 120;
     bool m_volumeUpPressed = false;
     bool m_volumeDownPressed = false;

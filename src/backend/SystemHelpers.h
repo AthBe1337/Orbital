@@ -4,6 +4,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QProcess>
 #include <QString>
 #include <QTextStream>
 #include <QtGlobal>
@@ -26,13 +27,31 @@ inline QString readTextFile(const QString &path)
 inline bool writeTextFile(const QString &path, const QString &value)
 {
     QFile file(path);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QTextStream out(&file);
+        out << value;
+        out.flush();
+        if (out.status() == QTextStream::Ok) {
+            return true;
+        }
+    }
+
+    QProcess process;
+    process.start(QStringLiteral("/usr/bin/sudo"),
+                  QStringList{QStringLiteral("-n"), QStringLiteral("/usr/bin/tee"), path});
+    if (!process.waitForStarted(1000)) {
         return false;
     }
 
-    QTextStream out(&file);
-    out << value;
-    return true;
+    process.write(value.toUtf8());
+    process.closeWriteChannel();
+    if (!process.waitForFinished(3000)) {
+        process.kill();
+        process.waitForFinished();
+        return false;
+    }
+
+    return process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0;
 }
 
 inline QString formatSize(qint64 bytes)
