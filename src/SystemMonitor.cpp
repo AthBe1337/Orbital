@@ -38,6 +38,8 @@ SystemMonitor::SystemMonitor(QObject *parent)
 
     connect(m_displayBackend, &DisplayBackend::brightnessChanged,
             this, &SystemMonitor::brightnessChanged);
+    connect(m_displayBackend, &DisplayBackend::brightnessOverlayOpacityChanged,
+            this, &SystemMonitor::brightnessOverlayOpacityChanged);
     connect(m_displayBackend, &DisplayBackend::screenStateChanged,
             this, &SystemMonitor::screenStateChanged);
     connect(m_displayBackend, &DisplayBackend::screenOffMethodChanged,
@@ -55,6 +57,8 @@ SystemMonitor::SystemMonitor(QObject *parent)
             this, &SystemMonitor::wifiEnabledChanged);
     connect(m_wifiBackend, &WifiBackend::currentWifiDetailsChanged,
             this, &SystemMonitor::currentWifiDetailsChanged);
+    connect(m_wifiBackend, &WifiBackend::wifiConnectResult,
+            this, &SystemMonitor::wifiConnectResult);
     connect(m_wifiBackend, &WifiBackend::wifiOperationResult,
             this, &SystemMonitor::wifiOperationResult);
 
@@ -172,6 +176,11 @@ int SystemMonitor::brightness() const
     return m_displayBackend->brightness();
 }
 
+double SystemMonitor::brightnessOverlayOpacity() const
+{
+    return m_displayBackend->brightnessOverlayOpacity();
+}
+
 QVariantList SystemMonitor::netInterfaces() const
 {
     return m_statsBackend->netInterfaces();
@@ -283,9 +292,9 @@ void SystemMonitor::setBrightness(int percent)
     m_displayBackend->setBrightness(percent);
 }
 
-void SystemMonitor::connectToWifi(const QString &ssid, const QString &password)
+int SystemMonitor::connectToWifi(const QString &ssid, const QString &password)
 {
-    m_wifiBackend->connectToWifi(ssid, password);
+    return m_wifiBackend->connectToWifi(ssid, password);
 }
 
 void SystemMonitor::disconnectFromWifi(const QString &ssid)
@@ -315,12 +324,16 @@ QString SystemMonitor::nextScreenshotPath() const
 
 void SystemMonitor::systemCmd(const QString &cmd)
 {
-    if (cmd == "reboot") {
-        QProcess::execute("reboot");
+    if (cmd != "reboot" && cmd != "poweroff") {
+        return;
     }
 
-    if (cmd == "poweroff") {
-        QProcess::execute("poweroff");
+    const bool started = QProcess::startDetached(
+        QStringLiteral("/usr/bin/sudo"),
+        QStringList{QStringLiteral("-n"), QStringLiteral("/usr/bin/systemctl"),
+                    QStringLiteral("--no-block"), cmd});
+    if (!started) {
+        qWarning() << "Failed to start system command:" << cmd;
     }
 }
 

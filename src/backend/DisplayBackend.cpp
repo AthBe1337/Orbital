@@ -46,12 +46,11 @@ QSettings orbitalSettings()
 
 QString environmentOrFallback(const char *name, const QString &fallback)
 {
-    const QByteArray value = qgetenv(name).trimmed();
-    if (value.isEmpty()) {
-        return fallback;
+    if (qEnvironmentVariableIsSet(name)) {
+        return QString::fromLocal8Bit(qgetenv(name)).trimmed();
     }
 
-    return QString::fromLocal8Bit(value);
+    return fallback;
 }
 
 QStringList parsePathList(const QString &combined)
@@ -112,6 +111,11 @@ DisplayBackend::DisplayBackend(QObject *parent)
     m_idleTimer->setSingleShot(true);
     connect(m_idleTimer, &QTimer::timeout, this, &DisplayBackend::onIdleTimeout);
 
+    m_brightnessTimer = new QTimer(this);
+    m_brightnessTimer->setSingleShot(true);
+    m_brightnessTimer->setInterval(60);
+    connect(m_brightnessTimer, &QTimer::timeout, this, &DisplayBackend::applyBrightness);
+
     findBacklightPath();
     initDrmPanel();
     initPowerKeyMonitor();
@@ -149,6 +153,11 @@ DisplayBackend::~DisplayBackend()
 int DisplayBackend::brightness() const
 {
     return m_brightnessPercent;
+}
+
+double DisplayBackend::brightnessOverlayOpacity() const
+{
+    return m_brightnessOverlayOpacity;
 }
 
 bool DisplayBackend::isScreenOn() const
@@ -277,25 +286,61 @@ void DisplayBackend::setBrightness(int percent)
     const bool needWrite = (m_brightnessPercent != percent);
     m_brightnessPercent = percent;
 
-    if (!m_backlightPath.isEmpty() && m_maxBrightness > 0) {
-        if (!m_isScreenOn) {
-            emit brightnessChanged();
-            return;
-        }
-
-        int actualVal = static_cast<int>(static_cast<double>(percent) / 100.0 * m_maxBrightness);
-        if (actualVal == 0 && percent > 0) {
-            actualVal = 1;
-        }
-
-        if (!Backend::writeTextFile(m_backlightPath + "/brightness", QString::number(actualVal))) {
-            qDebug() << "Failed to write to" << m_backlightPath + "/brightness";
-        }
-    }
-
     if (needWrite) {
         emit brightnessChanged();
     }
+
+    if (m_brightnessFallbackActive) {
+        updateBrightnessOverlay();
+    }
+
+    if (m_isScreenOn && !m_backlightPath.isEmpty() && m_maxBrightness > 0) {
+        m_brightnessTimer->start();
+    }
+}
+
+void DisplayBackend::applyBrightness()
+{
+    if (m_brightnessWriteUnavailable || !m_isScreenOn
+        || m_backlightPath.isEmpty() || m_maxBrightness <= 0) {
+        return;
+    }
+
+    int actualVal = static_cast<int>(static_cast<double>(m_brightnessPercent) / 100.0 * m_maxBrightness);
+    if (actualVal == 0 && m_brightnessPercent > 0) {
+        actualVal = 1;
+    }
+
+    if (!Backend::writeTextFile(m_backlightPath + "/brightness", QString::number(actualVal))) {
+        // The upstream sofef00 panel driver can reject DSI brightness commands.
+        // Stop retrying so slider movement does not repeatedly hit the broken path.
+        m_brightnessWriteUnavailable = true;
+        m_brightnessFallbackActive = true;
+        updateBrightnessOverlay();
+        qWarning() << "Hardware brightness unavailable; using software dimming for"
+                   << m_backlightPath + "/brightness";
+        return;
+    }
+
+    if (m_brightnessFallbackActive) {
+        m_brightnessFallbackActive = false;
+        if (m_brightnessOverlayOpacity != 0.0) {
+            m_brightnessOverlayOpacity = 0.0;
+            emit brightnessOverlayOpacityChanged();
+        }
+    }
+}
+
+void DisplayBackend::updateBrightnessOverlay()
+{
+    const double normalized = (100.0 - m_brightnessPercent) / 100.0;
+    const double opacity = 0.75 * normalized * normalized;
+    if (qFuzzyCompare(m_brightnessOverlayOpacity + 1.0, opacity + 1.0)) {
+        return;
+    }
+
+    m_brightnessOverlayOpacity = opacity;
+    emit brightnessOverlayOpacityChanged();
 }
 
 void DisplayBackend::onPowerInputEvent(int fd)
@@ -451,6 +496,9 @@ void DisplayBackend::toggleScreen()
 
     if (m_isScreenOn) {
         qDebug() << "Screen ON (method:" << m_screenOffMethod << ")";
+        if (m_brightnessTimer) {
+            m_brightnessTimer->stop();
+        }
         // Show windows first so the first frames are ready before the
         // panel powers up, then force a repaint below.
         setWindowsVisible(true);
@@ -462,16 +510,11 @@ void DisplayBackend::toggleScreen()
             qDebug() << "Failed to write to" << blPowerPath;
         }
 
-        int actualVal = static_cast<int>(static_cast<double>(m_brightnessPercent) / 100.0 * m_maxBrightness);
-        if (actualVal == 0) {
-            actualVal = 1;
+        if (haveBacklight) {
+            applyBrightness();
         }
 
-        if (haveBacklight && !Backend::writeTextFile(m_backlightPath + "/brightness", QString::number(actualVal))) {
-            qDebug() << "Failed to write to" << m_backlightPath + "/brightness";
-        }
-
-        if (!Backend::writeTextFile(m_touchInhibitPath, "0")) {
+        if (!m_touchInhibitPath.isEmpty() && !Backend::writeTextFile(m_touchInhibitPath, "0")) {
             qDebug() << "Failed to write to" << m_touchInhibitPath;
         }
 
@@ -483,6 +526,9 @@ void DisplayBackend::toggleScreen()
         });
     } else {
         qDebug() << "Screen OFF (method:" << m_screenOffMethod << ")";
+        if (m_brightnessTimer) {
+            m_brightnessTimer->stop();
+        }
         // Stop the Qt render loop first: hidden windows produce no frames,
         // so the GPU can idle even though the process keeps running.
         // Wake-up still works because power/volume keys are monitored via
@@ -493,7 +539,7 @@ void DisplayBackend::toggleScreen()
             qDebug() << "Failed to write to" << blPowerPath;
         }
 
-        if (!Backend::writeTextFile(m_touchInhibitPath, "1")) {
+        if (!m_touchInhibitPath.isEmpty() && !Backend::writeTextFile(m_touchInhibitPath, "1")) {
             qDebug() << "Failed to write to" << m_touchInhibitPath;
         }
 

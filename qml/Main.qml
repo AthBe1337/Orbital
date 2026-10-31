@@ -1002,6 +1002,17 @@ Window {
         onTriggered: screenshotToastMessage = ""
     }
 
+    // Fallback for kernels whose panel driver rejects DSI brightness writes.
+    Rectangle {
+        id: brightnessOverlay
+        anchors.fill: parent
+        z: 5000
+        color: "black"
+        opacity: backend.brightnessOverlayOpacity
+        visible: opacity > 0.001
+        enabled: false
+    }
+
     // ================= MAIN UI =================
     Component {
         id: homePage

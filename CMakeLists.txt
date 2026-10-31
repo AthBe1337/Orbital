@@ -202,3 +202,4 @@ endif()
 
 # 将scripts/run.sh复制到构建目录
 configure_file(${CMAKE_SOURCE_DIR}/scripts/run.sh ${CMAKE_BINARY_DIR}/run.sh COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/scripts/device-profile.sh ${CMAKE_BINARY_DIR}/device-profile.sh COPYONLY)

@@ -38,6 +38,7 @@ class SystemMonitor : public QObject
     Q_PROPERTY(QString netTxSpeed READ netTxSpeed NOTIFY statsChanged)
     Q_PROPERTY(QString loadAverage READ loadAverage NOTIFY statsChanged)
     Q_PROPERTY(int brightness READ brightness WRITE setBrightness NOTIFY brightnessChanged)
+    Q_PROPERTY(double brightnessOverlayOpacity READ brightnessOverlayOpacity NOTIFY brightnessOverlayOpacityChanged)
     Q_PROPERTY(QVariantList netInterfaces READ netInterfaces NOTIFY statsChanged)
     Q_PROPERTY(bool isScreenOn READ isScreenOn NOTIFY screenStateChanged)
     Q_PROPERTY(QString screenOffMethod READ screenOffMethod WRITE setScreenOffMethod NOTIFY screenOffMethodChanged)
@@ -73,6 +74,7 @@ public:
     QString netTxSpeed() const;
     QString loadAverage() const;
     int brightness() const;
+    double brightnessOverlayOpacity() const;
     QVariantList netInterfaces() const;
     bool isScreenOn() const;
     QString screenOffMethod() const;
@@ -99,7 +101,7 @@ public:
     void registerPluginExports(const QString &pluginId, const QJSValue &exports);
     QJSValue pluginExports(const QString &pluginId) const;
 
-    Q_INVOKABLE void connectToWifi(const QString &ssid, const QString &password);
+    Q_INVOKABLE int connectToWifi(const QString &ssid, const QString &password);
     Q_INVOKABLE void disconnectFromWifi(const QString &ssid);
     Q_INVOKABLE void forgetNetwork(const QString &ssid);
     Q_INVOKABLE void setAutoConnect(const QString &ssid, bool autoConnect);
@@ -111,12 +113,14 @@ public:
 signals:
     void statsChanged();
     void brightnessChanged();
+    void brightnessOverlayOpacityChanged();
     void screenStateChanged();
     void screenOffMethodChanged();
     void screenOffTimeoutChanged();
     void wifiListChanged();
     void wifiEnabledChanged();
     void currentWifiDetailsChanged();
+    void wifiConnectResult(int requestId, bool success, QString message);
     void wifiOperationResult(QString operation, bool success, QString message);
     void volumeKeyEvent(QString key, int value);
     void screenshotRequested();
