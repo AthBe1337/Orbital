@@ -324,12 +324,16 @@ QString SystemMonitor::nextScreenshotPath() const
 
 void SystemMonitor::systemCmd(const QString &cmd)
 {
-    if (cmd == "reboot") {
-        QProcess::execute("reboot");
+    if (cmd != "reboot" && cmd != "poweroff") {
+        return;
     }
 
-    if (cmd == "poweroff") {
-        QProcess::execute("poweroff");
+    const bool started = QProcess::startDetached(
+        QStringLiteral("/usr/bin/sudo"),
+        QStringList{QStringLiteral("-n"), QStringLiteral("/usr/bin/systemctl"),
+                    QStringLiteral("--no-block"), cmd});
+    if (!started) {
+        qWarning() << "Failed to start system command:" << cmd;
     }
 }
 
