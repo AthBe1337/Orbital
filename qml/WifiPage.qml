@@ -10,6 +10,7 @@ Page {
 
     property var backend
     property string pendingSsid: ""
+    property string connectState: "idle"
     
     // --- 内部 UI 状态 ---
     property bool isScanning: false
@@ -21,12 +22,22 @@ Page {
         target: backend
         function onWifiListChanged() { isScanning = false }
         function onWifiEnabledChanged() { isToggling = false }
+        function onWifiConnectResult(requestId, success, message) {
+            pendingSsid = ""
+
+            if (success) {
+                connectState = "success"
+                showToast(message.length > 0 ? message : "Connected successfully")
+            } else {
+                connectState = "error"
+                showToast("Connection failed: " + message)
+            }
+        }
         function onWifiOperationResult(op, success, msg) {
             pendingSsid = ""
             if (op === "toggle") isToggling = false
             if (!success) showToast("Error: " + msg)
             else if (op === "forget") showToast("Network forgotten")
-            else if (op === "connect") showToast("Connected successfully")
         }
     }
 
@@ -335,16 +346,10 @@ Page {
                             id: rowTap
                             gesturePolicy: TapHandler.ReleaseWithinBounds
                             onTapped: {
-                            stackView.push("qrc:/MyDesktop/Backend/qml/WifiConnectPage.qml", {
-                                "backend": backend,
-                                "wifiData": modelData,
-                                
-                                // 【关键】传入回调函数
-                                // 当详情页开始操作时，调用此函数设置 pendingSsid
-                                "onOperationStart": function(ssid) {
-                                    wifiPage.pendingSsid = ssid
-                                }
-                            })
+                                stackView.push("qrc:/MyDesktop/Backend/qml/WifiConnectPage.qml", {
+                                    "backend": backend,
+                                    "wifiData": modelData
+                                })
                             }
                         }
                     }
@@ -383,7 +388,11 @@ Page {
         Timer {
             id: toastTimer
             interval: 3000
-            onTriggered: toast.opacity = 0
+            onTriggered: {
+                toast.opacity = 0
+                if (connectState === "success" || connectState === "error")
+                    connectState = "idle"
+            }
             onRunningChanged: if (running) toast.opacity = 1
         }
     }

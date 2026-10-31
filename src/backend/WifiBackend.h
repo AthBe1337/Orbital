@@ -22,7 +22,7 @@ public:
 
 public slots:
     void setWifiEnabled(bool enable);
-    void connectToWifi(const QString &ssid, const QString &password);
+    int connectToWifi(const QString &ssid, const QString &password);
     void disconnectFromWifi(const QString &ssid);
     void forgetNetwork(const QString &ssid);
     void setAutoConnect(const QString &ssid, bool autoConnect);
@@ -32,6 +32,7 @@ signals:
     void wifiListChanged();
     void wifiEnabledChanged();
     void currentWifiDetailsChanged();
+    void wifiConnectResult(int requestId, bool success, QString message);
     void wifiOperationResult(QString operation, bool success, QString message);
 
 private:
@@ -46,4 +47,5 @@ private:
     QSet<QString> m_savedAutoConnect;
     QVariantMap m_currentWifiDetails;
     QVariantList m_netInterfaces;
+    int m_nextConnectRequestId = 0;
 };

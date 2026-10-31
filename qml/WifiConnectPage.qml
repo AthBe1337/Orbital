@@ -10,7 +10,7 @@ Page {
 
     property var backend
     property var wifiData: ({}) 
-    property var onOperationStart: null
+    property bool isSubmitting: false
 
     // 内部状态
     readonly property bool isConnected: wifiData.connected === true
@@ -60,9 +60,7 @@ Page {
     ScrollView {
         id: scrollView
         anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        // wifi keyboard visible -> keep Connect above it
-        anchors.bottomMargin: customKeyboard.visible ? customKeyboard.height : 0
+        anchors.bottom: isNew ? connectActionBar.top : parent.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         
@@ -191,7 +189,6 @@ Page {
                             id: tapDisconnect
                             gesturePolicy: TapHandler.ReleaseWithinBounds
                             onTapped: {
-                            if (onOperationStart) onOperationStart(wifiData.ssid)
                             backend.disconnectFromWifi(wifiData.ssid)
                             stackView.pop() // 断开后返回列表页
                             }
@@ -229,7 +226,7 @@ Page {
                             TapHandler {
                                 id: tapForget
                                 gesturePolicy: TapHandler.ReleaseWithinBounds
-                                onTapped: { if (onOperationStart) onOperationStart(wifiData.ssid); backend.forgetNetwork(wifiData.ssid); stackView.pop()
+                                onTapped: { backend.forgetNetwork(wifiData.ssid); stackView.pop()
                                 }
                             }
                         }
@@ -246,8 +243,7 @@ Page {
                             TapHandler {
                                 id: tapConnectSaved
                                 gesturePolicy: TapHandler.ReleaseWithinBounds
-                                onTapped: { if (onOperationStart) onOperationStart(wifiData.ssid); backend.connectToWifi(wifiData.ssid, ""); stackView.pop()
-                                }
+                                onTapped: connectPage.submitConnection()
                             }
                         }
                     }
@@ -303,7 +299,7 @@ Page {
                                     }
                                 }
 
-                                onAccepted: confirmConnect()
+                                onAccepted: connectPage.submitConnection()
                             }
 
                             // 4. 右侧眼睛按钮
@@ -335,24 +331,56 @@ Page {
                         }
                     }
 
-                    Rectangle {
-                        z: 20
-                        Layout.fillWidth: true; Layout.preferredHeight: 45
-                        radius: 8
-                        color: tapConnectNew.pressed ? "#1E5FCC" : "#2979FF"
-                        Text {
-                            anchors.centerIn: parent
-                            text: "Connect"
-                            color: "white"
-                            font.bold: true
-                        }
-                        TapHandler {
-                            id: tapConnectNew
-                            gesturePolicy: TapHandler.ReleaseWithinBounds
-                            onTapped: confirmConnect()
-                        }
-                    }
                 }
+            }
+        }
+    }
+
+    Rectangle {
+        id: connectActionBar
+        visible: isNew
+        z: 1000
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: customKeyboard.visible ? customKeyboard.top : parent.bottom
+        height: 72
+        color: "#121212"
+
+        Rectangle {
+            anchors.fill: parent
+            anchors.topMargin: 1
+            color: "transparent"
+            border.color: "#333"
+            border.width: 1
+        }
+
+        Rectangle {
+            id: connectButton
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.leftMargin: 30
+            anchors.rightMargin: 30
+            height: 50
+            radius: 8
+            color: connectPage.isSubmitting
+                ? "#1F3552"
+                : (connectButtonTap.pressed ? "#1E5FCC" : "#2979FF")
+            opacity: connectPage.isSubmitting ? 0.7 : 1
+
+            Text {
+                anchors.centerIn: parent
+                text: connectPage.isSubmitting ? "Connecting..." : "Connect"
+                color: "white"
+                font.bold: true
+                font.pixelSize: 16
+            }
+
+            TapHandler {
+                id: connectButtonTap
+                enabled: !connectPage.isSubmitting
+                gesturePolicy: TapHandler.ReleaseWithinBounds
+                onTapped: connectPage.submitConnection()
             }
         }
     }
@@ -367,16 +395,20 @@ Page {
         
         visible: false 
 
-        onEnterClicked: confirmConnect()
+        onEnterClicked: connectPage.submitConnection()
     }
 
     // --- 逻辑函数 ---
-    function confirmConnect() {
-        if (isNew) {
-            if (onOperationStart) onOperationStart(wifiData.ssid)
-            backend.connectToWifi(wifiData.ssid, passInput.text)
-            stackView.pop()
-        }
+    function submitConnection() {
+        if (isSubmitting || (!isNew && !isSaved))
+            return
+
+        isSubmitting = true
+        customKeyboard.visible = false
+        passInput.focus = false
+
+        backend.connectToWifi(wifiData.ssid, isNew ? passInput.text : "")
+        stackView.pop()
     }
     
     Component.onCompleted: {

@@ -80,36 +80,73 @@ void WifiBackend::setWifiEnabled(bool enable)
     proc->start("nmcli", QStringList() << "radio" << "wifi" << state);
 }
 
-void WifiBackend::connectToWifi(const QString &ssid, const QString &password)
+int WifiBackend::connectToWifi(const QString &ssid, const QString &password)
 {
+    const int requestId = ++m_nextConnectRequestId;
     if (!m_wifiEnabled) {
-        emit wifiOperationResult("connect", false, "WiFi is disabled");
-        return;
+        QTimer::singleShot(0, this, [this, requestId]() {
+            emit wifiConnectResult(requestId, false, QStringLiteral("WiFi is disabled"));
+        });
+        return requestId;
     }
 
     QProcess *proc = new QProcess(this);
+    proc->setProperty("orbitalConnectResultReported", false);
     QStringList args;
     args << "dev" << "wifi" << "connect" << ssid;
     if (!password.isEmpty()) {
         args << "password" << password;
     }
 
+    const auto reportResult = [this, proc, requestId](bool success, const QString &rawMessage) {
+        if (proc->property("orbitalConnectResultReported").toBool()) {
+            return;
+        }
+        proc->setProperty("orbitalConnectResultReported", true);
+
+        QString message = rawMessage.trimmed();
+        if (message.isEmpty()) {
+            message = success ? QStringLiteral("Connected successfully")
+                              : QStringLiteral("Connection failed");
+        }
+
+        fetchSavedWifiList();
+        scanWifiNetworks();
+        emit wifiConnectResult(requestId, success, message);
+    };
+
     connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            [this, proc, ssid](int exitCode, QProcess::ExitStatus) {
+            [proc, reportResult](int exitCode, QProcess::ExitStatus) {
         const bool success = (exitCode == 0);
         const QString output = QString::fromUtf8(proc->readAllStandardOutput());
         const QString error = QString::fromUtf8(proc->readAllStandardError());
 
-        // 无论成功或失败都刷新，确保 m_savedSsids 与 NetworkManager 实际状态同步
-        // （nmcli 连接失败时也可能创建了 connection profile）
-        fetchSavedWifiList();
-        scanWifiNetworks();
-
-        emit wifiOperationResult("connect", success, success ? output : error);
+        reportResult(success, success ? output : error);
         proc->deleteLater();
     });
 
+    connect(proc, &QProcess::errorOccurred, [proc, reportResult](QProcess::ProcessError error) {
+        if (error == QProcess::FailedToStart) {
+            QTimer::singleShot(0, proc, [proc, reportResult]() {
+                reportResult(false, QStringLiteral("nmcli unavailable"));
+                proc->deleteLater();
+            });
+        } else if (error == QProcess::Crashed) {
+            reportResult(false, QStringLiteral("nmcli crashed"));
+        }
+    });
+
+    QTimer::singleShot(45000, proc, [proc, reportResult]() {
+        if (proc->state() == QProcess::NotRunning) {
+            return;
+        }
+
+        reportResult(false, QStringLiteral("Connection timed out"));
+        proc->kill();
+    });
+
     proc->start("nmcli", args);
+    return requestId;
 }
 
 void WifiBackend::disconnectFromWifi(const QString &ssid)
